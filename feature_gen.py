@@ -1,3 +1,4 @@
+from collections import Counter
 from enum import Enum
 
 import numpy as np
@@ -11,6 +12,7 @@ class Lines(Enum):
     Central = "red"
     Victoria = "cyan"
     Jubilee = "grey"
+    Northern = "black"
     Piccadilly = "navy"
     Waterloo = "brown"
 
@@ -43,6 +45,8 @@ class StationLocations(Enum):
     WarrenStr = (0.7, 0.0)
 
 
+assert set(s.name for s in Stations) == set(s.name for s in StationLocations)
+
 network = {
     Lines.Central: [
         Stations.MarbleArch,
@@ -60,6 +64,12 @@ network = {
         Stations.GreenPark,
         Stations.Westminster,
     ],
+    Lines.Northern: [
+        Stations.WarrenStr,
+        Stations.TCR,
+        Stations.LeicesterSq,
+        Stations.CharingX,
+    ],
     Lines.Piccadilly: [
         Stations.HPC,
         Stations.GreenPark,
@@ -75,3 +85,26 @@ network = {
 
 node_names = list(sorted(s.value for s in Stations))
 node_idx = dict(enumerate(node_names))
+interchanges = {}
+stations_by_line = [
+    *sorted(
+        [(s.value, line.name) for line, stations in network.items() for s in stations]
+    )
+]
+station_line_counter = Counter([s for s, _ in stations_by_line])
+interchanges = {
+    station: [line for name, line in stations_by_line if name == station]
+    for station, c in station_line_counter.items()
+    if c > 1
+}
+
+# >>> from pprint import pprint; pp = lambda x: pprint(x, sort_dicts=False)
+# >>> pp(interchanges)
+# {'Bond Street': ['Central', 'Jubilee'],
+#  'Charing Cross': ['Northern', 'Waterloo'],
+#  'Green Park': ['Jubilee', 'Piccadilly', 'Victoria'],
+#  'Leicester Square': ['Northern', 'Piccadilly'],
+#  'Oxford Circus': ['Central', 'Victoria', 'Waterloo'],
+#  'Piccadilly Circus': ['Piccadilly', 'Waterloo'],
+#  'Tottenham Court Road': ['Central', 'Northern'],
+#  'Warren Street': ['Northern', 'Victoria']}
