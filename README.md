@@ -2,6 +2,13 @@
 
 Modeling journey time on the London tube network using graph representation learning.
 
+## Toy dataset creation
+
+To begin work on this, I'm using a toy dataset for the following subset of the tube network
+(the stations not greyed out).
+
+![](assets/tube-subnet.png)
+
 ## Approach
 
 - The [`tubeulator`][tubeulator] library is used for data download
