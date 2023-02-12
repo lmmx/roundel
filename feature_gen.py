@@ -16,60 +16,60 @@ class Lines(Enum):
 
 
 class Stations(Enum):
-    BondStreet = "Bond Street"
-    CharingCross = "Charing Cross"
+    BondStr = "Bond Street"
+    CharingX = "Charing Cross"
     GreenPark = "Green Park"
     HPC = "Hyde Park Corner"
-    LeicesterSquare = "Leicester Square"
+    LeicesterSq = "Leicester Square"
     MarbleArch = "Marble Arch"
-    OxfordCircus = "Oxford Circus"
-    PiccadillyCircus = "Piccadilly Circus"
+    OxfordCirc = "Oxford Circus"
+    PiccadillyCirc = "Piccadilly Circus"
     TCR = "Tottenham Court Road"
-    WarrenStreet = "Warren Street"
+    WarrenStr = "Warren Street"
     Westminster = "Westminster"
 
 
 class StationLocations(Enum):
     MarbleArch = (0.1, 0.3)
-    BondStreet = (0.3, 0.3)
+    BondStr = (0.3, 0.3)
     HPC = (0.2, 0.6)
     GreenPark = (0.3, 0.6)
-    OxfordCircus = (0.5, 0.4)
-    PiccadillyCircus = (0.6, 0.6)
+    OxfordCirc = (0.5, 0.4)
+    PiccadillyCirc = (0.6, 0.6)
     TCR = (0.7, 0.4)
     Westminster = (0.6, 0.9)
-    LeicesterSquare = (0.7, 0.6)
-    CharingCross = (0.7, 0.8)
-    WarrenStreet = (0.7, 0.0)
+    LeicesterSq = (0.7, 0.6)
+    CharingX = (0.7, 0.8)
+    WarrenStr = (0.7, 0.0)
 
 
 network = {
     Lines.Central: [
         Stations.MarbleArch,
-        Stations.BondStreet,
-        Stations.OxfordCircus,
+        Stations.BondStr,
+        Stations.OxfordCirc,
         Stations.TCR,
     ],
     Lines.Victoria: [
-        Stations.WarrenStreet,
-        Stations.OxfordCircus,
+        Stations.WarrenStr,
+        Stations.OxfordCirc,
         Stations.GreenPark,
     ],
     Lines.Jubilee: [
-        Stations.BondStreet,
+        Stations.BondStr,
         Stations.GreenPark,
         Stations.Westminster,
     ],
     Lines.Piccadilly: [
         Stations.HPC,
         Stations.GreenPark,
-        Stations.PiccadillyCircus,
-        Stations.LeicesterSquare,
+        Stations.PiccadillyCirc,
+        Stations.LeicesterSq,
     ],
     Lines.Waterloo: [
-        Stations.OxfordCircus,
-        Stations.PiccadillyCircus,
-        Stations.CharingCross,
+        Stations.OxfordCirc,
+        Stations.PiccadillyCirc,
+        Stations.CharingX,
     ],
 }
 
