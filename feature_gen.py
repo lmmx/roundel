@@ -1,8 +1,6 @@
 from collections import Counter
 from enum import Enum
 
-import numpy as np
-
 # Imagine we have imported nice representations of stations and lines from tubeulator
 # For now we mock these with a simple dictionary of a subset of inner London stations
 # which we ensure are not subject to typos etc. by keeping a unique Enum of station names
@@ -83,28 +81,28 @@ network = {
     ],
 }
 
-node_names = list(sorted(s.value for s in Stations))
-node_idx = dict(enumerate(node_names))
-interchanges = {}
+node_names = list(sorted(station.value for station in Stations))
+line_names = list(sorted(line.name for line in Lines))
+idx2node = dict(enumerate(node_names))
+idx2line = dict(enumerate(line_names))
+node2idx = {n: i for i, n in idx2node.items()}
+line2idx = {n: i for i, n in idx2line.items()}
 stations_by_line = [
     *sorted(
         [(s.value, line.name) for line, stations in network.items() for s in stations]
     )
 ]
 station_line_counter = Counter([s for s, _ in stations_by_line])
+station_line_lookup = {
+    station: [line for name, line in stations_by_line if name == station]
+    for station in station_line_counter
+}
 interchanges = {
     station: [line for name, line in stations_by_line if name == station]
     for station, c in station_line_counter.items()
     if c > 1
 }
-
-# >>> from pprint import pprint; pp = lambda x: pprint(x, sort_dicts=False)
-# >>> pp(interchanges)
-# {'Bond Street': ['Central', 'Jubilee'],
-#  'Charing Cross': ['Northern', 'Waterloo'],
-#  'Green Park': ['Jubilee', 'Piccadilly', 'Victoria'],
-#  'Leicester Square': ['Northern', 'Piccadilly'],
-#  'Oxford Circus': ['Central', 'Victoria', 'Waterloo'],
-#  'Piccadilly Circus': ['Piccadilly', 'Waterloo'],
-#  'Tottenham Court Road': ['Central', 'Northern'],
-#  'Warren Street': ['Northern', 'Victoria']}
+station_line_idx_lookup = {
+    node2idx[station]: [line2idx[line] for line in lines]
+    for station, lines in station_line_lookup.items()
+}
