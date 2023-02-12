@@ -29,6 +29,20 @@ class Stations(Enum):
     Westminster = "Westminster"
 
 
+class StationLocations(Enum):
+    MarbleArch = (0.1, 0.3)
+    BondStreet = (0.3, 0.3)
+    HPC = (0.2, 0.6)
+    GreenPark = (0.3, 0.6)
+    OxfordCircus = (0.5, 0.4)
+    PiccadillyCircus = (0.6, 0.6)
+    TCR = (0.7, 0.4)
+    Westminster = (0.6, 0.9)
+    LeicesterSquare = (0.7, 0.6)
+    CharingCross = (0.7, 0.8)
+    WarrenStreet = (0.7, 0.0)
+
+
 network = {
     Lines.Central: [
         Stations.MarbleArch,
@@ -58,3 +72,6 @@ network = {
         Stations.CharingCross,
     ],
 }
+
+node_names = list(sorted(s.value for s in Stations))
+node_idx = dict(enumerate(node_names))
