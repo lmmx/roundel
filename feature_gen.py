@@ -1,5 +1,6 @@
 from collections import Counter
 from enum import Enum
+from itertools import combinations, groupby, pairwise
 
 # Imagine we have imported nice representations of stations and lines from tubeulator
 # For now we mock these with a simple dictionary of a subset of inner London stations
@@ -119,12 +120,74 @@ station_line_uniq_global_idx_lut = {
         line_name,
     ) in station_line_uniq_global_lut.items()
 }
+
+
+def station_line_name_lookup(station: Stations, line: Lines) -> int:
+    station_name = station.value
+    line_name = line.name
+    return next(
+        (
+            station_line_idx
+            for station_line_idx, (
+                candidate_station_name,
+                candidate_line,
+            ) in station_line_uniq_global_lut.items()
+            if station_name == candidate_station_name
+            if line_name == candidate_line
+        )
+    )
+
+
+network_as_station_line_idx = {
+    line2idx[line.name]: [
+        station_line_name_lookup(station=station, line=line) for station in stations
+    ]
+    for line, stations in network.items()
+}
+
+# >>> from pprint import pprint; pp = lambda x: pprint(x, sort_dicts=False)
+# >>> pp(interchanges)
+# {'Bond Street': ['Central', 'Jubilee'],
+#  'Charing Cross': ['Northern', 'Waterloo'],
+#  'Green Park': ['Jubilee', 'Piccadilly', 'Victoria'],
+#  'Leicester Square': ['Northern', 'Piccadilly'],
+#  'Oxford Circus': ['Central', 'Victoria', 'Waterloo'],
+#  'Piccadilly Circus': ['Piccadilly', 'Waterloo'],
+#  'Tottenham Court Road': ['Central', 'Northern'],
+#  'Warren Street': ['Northern', 'Victoria']}
+# >>> pp(interchanges_uniq_global_idx_lut)
+# {0: (0, 0),
+#  1: (0, 1),
+#  2: (1, 2),
+#  3: (1, 5),
+#  4: (2, 1),
+#  5: (2, 3),
+#  6: (2, 4),
+#  8: (4, 2),
+#  9: (4, 3),
+#  11: (6, 0),
+#  12: (6, 4),
+#  13: (6, 5),
+#  14: (7, 3),
+#  15: (7, 5),
+#  16: (8, 0),
+#  17: (8, 2),
+#  18: (9, 2),
+#  19: (9, 4)}
+
+interchanges_uniq_global_idx_lut = {
+    station_line_idx: (global_station_idx, line_idx)
+    for station_line_idx, (
+        global_station_idx,
+        line_idx,
+    ) in station_line_uniq_global_idx_lut.items()
+    if idx2node[global_station_idx] in interchanges
+}
 station_line_uniq_names = [
     f"{station} ({line})" for station, line in station_line_uniq_global_lut.values()
 ]
 station_line_uniq_name_lut = dict(enumerate(station_line_uniq_names))
 
-# >>> from pprint import pprint; pp = lambda x: pprint(x, sort_dicts=False)
 # >>> pp(station_line_uniq_global_lut)
 # {0: ('Bond Street', 'Central'),
 #  1: ('Bond Street', 'Jubilee'),
@@ -205,3 +268,40 @@ node_features = {
 #  18: [0.7, 0.0, 2],
 #  19: [0.7, 0.0, 4],
 #  20: [0.6, 0.9, 1]}
+
+# interchange_edges = {
+#     [
+#         (x, y)
+#         for x in interchanges
+#         for y in set(l) - set([x])
+#         if interchanges.index(y) > interchanges.index(x)
+#     ]
+# }
+interchange_global_idx_edges = {
+    global_station_idx: list(
+        combinations([stationline_idx for stationline_idx, _ in group], r=2)
+    )
+    for global_station_idx, group in groupby(
+        sorted(interchanges_uniq_global_idx_lut.items()), key=lambda x: x[1][0]
+    )
+}
+# Now we want to unroll them (flatten all dict values) and zip them to unpair
+transfer_edge_index = list(
+    zip(*[pair for vals in interchange_global_idx_edges.values() for pair in vals])
+)
+transfer_edge_weights = [1 for _ in transfer_edge_index[0]]
+
+# Lastly we want travel times between consecutive stations on the same line
+# Take consecutive pairs from each line and assume stops are evenly spaced
+edge_index = list(
+    zip(
+        *[
+            pair
+            for line in [
+                [*pairwise(vals)] for vals in network_as_station_line_idx.values()
+            ]
+            for pair in line
+        ]
+    )
+)
+edge_weights = [5 for _ in edge_index[0]]
