@@ -8,6 +8,15 @@ import torch
 # For now we mock these with a simple dictionary of a subset of inner London stations
 # which we ensure are not subject to typos etc. by keeping a unique Enum of station names
 
+__all__ = [
+    "Lines",
+    "Stations",
+    "StationLocations",
+    "node_features",
+    "edge_index",
+    "edge_weights",
+]
+
 
 class Lines(Enum):
     Central = "red"
@@ -240,7 +249,7 @@ nodeidx2latlong_global = {
     for station_name, idx in node2idx_global.items()
 }
 
-node_features = {
+node_features_by_idx = {
     stationline_idx: [*nodeidx2latlong_global[station_idx], line_idx]
     for stationline_idx, (
         station_idx,
@@ -248,7 +257,10 @@ node_features = {
     ) in station_line_uniq_global_idx_lut.items()
 }
 
-# >>> pp(node_features)
+# This coerces the 3rd feature, the line_idx, to a float (lat/long already were)
+node_features = torch.tensor(list(node_features_by_idx.values()))
+
+# >>> pp(node_features_by_idx)
 # {0: [0.3, 0.3, 0],
 #  1: [0.3, 0.3, 1],
 #  2: [0.7, 0.8, 2],
