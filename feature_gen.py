@@ -2,6 +2,8 @@ from collections import Counter
 from enum import Enum
 from itertools import combinations, groupby, pairwise
 
+import torch
+
 # Imagine we have imported nice representations of stations and lines from tubeulator
 # For now we mock these with a simple dictionary of a subset of inner London stations
 # which we ensure are not subject to typos etc. by keeping a unique Enum of station names
@@ -285,23 +287,62 @@ interchange_global_idx_edges = {
         sorted(interchanges_uniq_global_idx_lut.items()), key=lambda x: x[1][0]
     )
 }
+
+
+def bidir_edge_index(edge_index: torch.Tensor) -> torch.Tensor:
+    """
+    Merging with the 180° rotated matrix puts the same edges in the opposite direction
+    """
+    return torch.cat([edge_index, edge_index.rot90(2)], dim=1)
+
+
+def weights_from_idx(target_index: torch.Tensor, value: int) -> torch.Tensor:
+    """
+    For simplicity, use the same value as the weight for every edge.
+    """
+    return torch.full_like(target_index[0], fill_value=value)
+
+
 # Now we want to unroll them (flatten all dict values) and zip them to unpair
-transfer_edge_index = list(
-    zip(*[pair for vals in interchange_global_idx_edges.values() for pair in vals])
+transfer_edge_index = torch.tensor(
+    list(
+        zip(*[pair for vals in interchange_global_idx_edges.values() for pair in vals])
+    )
 )
-transfer_edge_weights = [1 for _ in transfer_edge_index[0]]
+symm_transfer_edge_index = bidir_edge_index(transfer_edge_index)
+transfer_edge_weights = weights_from_idx(target_index=symm_transfer_edge_index, value=1)
 
 # Lastly we want travel times between consecutive stations on the same line
 # Take consecutive pairs from each line and assume stops are evenly spaced
-edge_index = list(
-    zip(
-        *[
-            pair
-            for line in [
-                [*pairwise(vals)] for vals in network_as_station_line_idx.values()
+consec_edge_index = torch.tensor(
+    list(
+        zip(
+            *[
+                pair
+                for line in [
+                    [*pairwise(vals)] for vals in network_as_station_line_idx.values()
+                ]
+                for pair in line
             ]
-            for pair in line
-        ]
+        )
     )
 )
-edge_weights = [5 for _ in edge_index[0]]
+symm_consec_edge_index = bidir_edge_index(edge_index=consec_edge_index)
+
+# Let us assume every station is 5 minutes away from its neighbour on the line
+consec_edge_weights = weights_from_idx(target_index=symm_consec_edge_index, value=5)
+
+# Conjoin the transfer edge index/weights and line neighbour edge index/weights
+edge_index = torch.cat((symm_transfer_edge_index, symm_consec_edge_index), dim=-1)
+edge_weights = torch.cat((transfer_edge_weights, consec_edge_weights), dim=-1)
+# >>> edge_index
+# tensor([[ 0,  2,  4,  4,  5,  8, 11, 11, 12, 14, 16, 18, 19, 17, 15, 13, 13, 12,
+#           9,  6,  6,  5,  3,  1, 10,  0, 11, 19, 12,  1,  4, 18, 17,  8,  7,  5,
+#          14, 13, 15,  3, 15,  9, 14,  5,  2,  8, 17, 20,  4,  6, 12, 16, 11,  0],
+#         [ 1,  3,  5,  6,  6,  9, 12, 13, 13, 15, 17, 19, 18, 16, 14, 12, 11, 11,
+#           8,  5,  4,  4,  2,  0,  0, 11, 16, 12,  6,  4, 20, 17,  8,  2,  5, 14,
+#           9, 15,  3, 15, 13, 14,  5,  7,  8, 17, 18,  4,  1, 12, 19, 11,  0, 10]])
+# >>> edge_weights
+# tensor([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+#         5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+#         5, 5, 5, 5, 5, 5])
