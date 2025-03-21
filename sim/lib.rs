@@ -302,8 +302,8 @@ impl SharedState {
     }
 }
 
-/// A thread-local global storing our entire simulation state. In single-threaded 
-/// Wasm, this is effectively just a single global, but we don't have to mark it `Sync`.
+// A thread-local global storing our entire simulation state. In single-threaded 
+// Wasm, this is effectively just a single global, but we don't have to mark it `Sync`.
 thread_local! {
     static GLOBAL_STATE: RefCell<SharedState> = RefCell::new(SharedState::new());
 }
@@ -358,10 +358,10 @@ pub fn main_js() -> Result<(), JsValue> {
                 // Distinguish bus vs train routes by index
                 if route_index < 10 {
                     // Train route: light red
-                    ctx.set_fill_style(&JsValue::from_str("rgba(255, 150, 150, 0.6)"));
+                    ctx.set_fill_style_str("rgba(255, 150, 150, 0.6)");
                 } else {
                     // Bus route: light blue
-                    ctx.set_fill_style(&JsValue::from_str("rgba(150, 150, 255, 0.6)"));
+                    ctx.set_fill_style_str("rgba(150, 150, 255, 0.6)");
                 }
 
                 for &(sx, sy) in &route.stations {
@@ -380,10 +380,10 @@ pub fn main_js() -> Result<(), JsValue> {
                 ctx.arc(v.x as f64, v.y as f64, 2.0, 0.0, 6.28).unwrap();
                 match v.vehicle_type {
                     VehicleType::Bus => {
-                        ctx.set_fill_style(&JsValue::from_str("blue"));
+                        ctx.set_fill_style_str("blue");
                     }
                     VehicleType::Train => {
-                        ctx.set_fill_style(&JsValue::from_str("red"));
+                        ctx.set_fill_style_str("red");
                     }
                 }
                 ctx.fill();
