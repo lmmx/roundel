@@ -55,7 +55,7 @@ class StationLocations(Enum):
     WarrenStr = (0.7, 0.0)
 
 
-assert set(s.name for s in Stations) == set(s.name for s in StationLocations)
+assert {s.name for s in Stations} == {s.name for s in StationLocations}
 
 network = {
     Lines.Central: [
@@ -102,8 +102,8 @@ node2idx_global = {n: i for i, n in idx2node.items()}
 line2idx = {n: i for i, n in idx2line.items()}
 stations_by_line = [
     *sorted(
-        [(s.value, line.name) for line, stations in network.items() for s in stations]
-    )
+        [(s.value, line.name) for line, stations in network.items() for s in stations],
+    ),
 ]
 station_line_counter = Counter([s for s, _ in stations_by_line])
 station_line_lookup = {
@@ -121,8 +121,8 @@ station_line_uniq_global_lut = dict(
             (station, line)
             for station, lines in station_line_lookup.items()
             for line in sorted(lines, key=lambda k: line2idx[k])
-        ]
-    )
+        ],
+    ),
 )
 station_line_uniq_global_idx_lut = {
     station_line_idx: (node2idx_global[global_station_name], line2idx[line_name])
@@ -293,10 +293,11 @@ node_features = torch.tensor(list(node_features_by_idx.values()))
 # }
 interchange_global_idx_edges = {
     global_station_idx: list(
-        combinations([stationline_idx for stationline_idx, _ in group], r=2)
+        combinations([stationline_idx for stationline_idx, _ in group], r=2),
     )
     for global_station_idx, group in groupby(
-        sorted(interchanges_uniq_global_idx_lut.items()), key=lambda x: x[1][0]
+        sorted(interchanges_uniq_global_idx_lut.items()),
+        key=lambda x: x[1][0],
     )
 }
 
@@ -318,8 +319,8 @@ def weights_from_idx(target_index: torch.Tensor, value: int) -> torch.Tensor:
 # Now we want to unroll them (flatten all dict values) and zip them to unpair
 transfer_edge_index = torch.tensor(
     list(
-        zip(*[pair for vals in interchange_global_idx_edges.values() for pair in vals])
-    )
+        zip(*[pair for vals in interchange_global_idx_edges.values() for pair in vals]),
+    ),
 )
 symm_transfer_edge_index = bidir_edge_index(transfer_edge_index)
 transfer_edge_weights = weights_from_idx(target_index=symm_transfer_edge_index, value=1)
@@ -335,9 +336,9 @@ consec_edge_index = torch.tensor(
                     [*pairwise(vals)] for vals in network_as_station_line_idx.values()
                 ]
                 for pair in line
-            ]
-        )
-    )
+            ],
+        ),
+    ),
 )
 symm_consec_edge_index = bidir_edge_index(edge_index=consec_edge_index)
 
