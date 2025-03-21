@@ -1,0 +1,5 @@
+.aiignore
+.gitignore
+.git/
+dist/
+target/
