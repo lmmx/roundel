@@ -3,7 +3,7 @@
 use js_sys::Math;
 use std::cell::RefCell;
 
-/// A route is a sequence of station coordinates (x, y). 
+/// A route is a sequence of station coordinates (x, y).
 pub struct Route {
     pub stations: Vec<(f32, f32)>,
 }
