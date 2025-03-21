@@ -1,17 +1,19 @@
-// src/ui.rs
-
 use js_sys::Date;
 use std::cell::RefCell;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::{JsCast, closure::Closure};
-use web_sys::{CanvasRenderingContext2d, Document, HtmlCanvasElement, MouseEvent, console};
+use web_sys::{
+    CanvasRenderingContext2d, Document, HtmlCanvasElement, MouseEvent, WheelEvent, console,
+};
 
 use crate::model::{GLOBAL_STATE, VehicleType};
 
+/// Stores camera offset (pan_x, pan_y) and a zoom factor (`scale`).
 #[derive(Default)]
 struct Camera {
     pub pan_x: f32,
     pub pan_y: f32,
+    pub scale: f32,
 }
 
 /// Whether user is dragging, plus last mouse coords
@@ -22,31 +24,32 @@ struct DragState {
     pub last_y: f32,
 }
 
-// A thread-local "camera" storing our pan offset
+// A thread-local "camera" storing our pan offset and zoom scale.
 thread_local! {
-    static CAMERA: RefCell<Camera> = RefCell::new(Camera::default());
+    static CAMERA: RefCell<Camera> = RefCell::new(Camera { pan_x: 0.0, pan_y: 0.0, scale: 1.0 });
     static DRAG: RefCell<DragState> = RefCell::new(DragState::default());
 }
 
 /// Called once when the Wasm module loads:
 /// 1) Initialize routes/vehicles
 /// 2) Start the update loop (setInterval ~60 FPS)
-/// 3) Attach mouse events so we can pan the canvas
+/// 3) Attach mouse events for panning and wheel event for zoom
 #[wasm_bindgen(start)]
 pub fn main_js() -> Result<(), JsValue> {
     console_error_panic_hook::set_once();
 
-    // 1) Create routes & vehicles
+    // 1) Create routes & vehicles (random or real)
     GLOBAL_STATE.with(|cell| {
         let mut state = cell.borrow_mut();
-        state.init_vehicles(); // builds random routes + vehicles
+        state.init_vehicles();
     });
 
     // 2) Repeated update & draw
     start_animation_loop()?;
 
-    // 3) Attach mouse listeners for panning
+    // 3) Attach mouse & wheel listeners
     attach_mouse_listeners()?;
+    attach_wheel_listener()?;
 
     Ok(())
 }
@@ -56,12 +59,12 @@ fn start_animation_loop() -> Result<(), JsValue> {
     let closure = Closure::wrap(Box::new(move || {
         let t_start = Date::now();
 
-        // Update vehicles
+        // 1) Update vehicles
         GLOBAL_STATE.with(|cell| {
             cell.borrow_mut().update_all();
         });
 
-        // Draw
+        // 2) Draw everything
         if let Some(window) = web_sys::window() {
             if let Some(document) = window.document() {
                 if let Some(canvas_el) = document.get_element_by_id("myCanvas") {
@@ -102,12 +105,11 @@ fn start_animation_loop() -> Result<(), JsValue> {
     Ok(())
 }
 
-/// Draw routes, offsetting by the camera's pan_x/pan_y
+/// Draw routes, offsetting by the camera's pan_x/pan_y and scaling by camera.scale
 fn draw_routes(ctx: &CanvasRenderingContext2d) {
-    // read the camera offset
-    let (pan_x, pan_y) = CAMERA.with(|c| {
+    let (pan_x, pan_y, scale) = CAMERA.with(|c| {
         let cam = c.borrow();
-        (cam.pan_x, cam.pan_y)
+        (cam.pan_x, cam.pan_y, cam.scale)
     });
 
     GLOBAL_STATE.with(|cell| {
@@ -122,32 +124,38 @@ fn draw_routes(ctx: &CanvasRenderingContext2d) {
 
             for &(sx, sy) in &route.stations {
                 ctx.begin_path();
-                // shift by pan_x / pan_y
-                let draw_x = (sx - pan_x) as f64;
-                let draw_y = (sy - pan_y) as f64;
 
-                ctx.arc(draw_x, draw_y, 5.0, 0.0, 6.28).unwrap();
+                // shift by pan_x / pan_y, then apply scale
+                // final_x = (sx - pan_x)*scale
+                let draw_x = (sx - pan_x) * scale;
+                let draw_y = (sy - pan_y) * scale;
+
+                ctx.arc(draw_x as f64, draw_y as f64, 5.0 * scale as f64, 0.0, 6.28)
+                    .unwrap();
                 ctx.fill();
             }
         }
     });
 }
 
-/// Draw vehicles, offsetting by camera
+/// Draw vehicles, offset by camera pan and scale
 fn draw_vehicles(ctx: &CanvasRenderingContext2d) {
-    let (pan_x, pan_y) = CAMERA.with(|c| {
+    let (pan_x, pan_y, scale) = CAMERA.with(|c| {
         let cam = c.borrow();
-        (cam.pan_x, cam.pan_y)
+        (cam.pan_x, cam.pan_y, cam.scale)
     });
 
     GLOBAL_STATE.with(|cell| {
         let state = cell.borrow();
         for v in &state.vehicles {
             ctx.begin_path();
-            let draw_x = (v.x - pan_x) as f64;
-            let draw_y = (v.y - pan_y) as f64;
 
-            ctx.arc(draw_x, draw_y, 2.0, 0.0, 6.28).unwrap();
+            let draw_x = (v.x - pan_x) * scale;
+            let draw_y = (v.y - pan_y) * scale;
+
+            // vehicles are small, so also multiply the circle radius by scale
+            ctx.arc(draw_x as f64, draw_y as f64, 2.0 * scale as f64, 0.0, 6.28)
+                .unwrap();
 
             match v.vehicle_type {
                 VehicleType::Bus => ctx.set_fill_style_str("blue"),
@@ -158,7 +166,7 @@ fn draw_vehicles(ctx: &CanvasRenderingContext2d) {
     });
 }
 
-/// Attach mouse event listeners so the user can drag the canvas around.
+/// Attach mouse events so user can pan the canvas.
 fn attach_mouse_listeners() -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
     let document: Document = window.document().unwrap();
@@ -216,9 +224,9 @@ fn attach_mouse_listeners() -> Result<(), JsValue> {
                     // shift camera
                     CAMERA.with(|c| {
                         let mut cam = c.borrow_mut();
-                        // we do "cam.pan_x -= dx" so dragging right -> negative offset
-                        cam.pan_x -= dx;
-                        cam.pan_y -= dy;
+                        // dragging right => negative offset
+                        cam.pan_x -= dx / cam.scale; // incorporate scale if you like
+                        cam.pan_y -= dy / cam.scale;
                     });
 
                     // update last
@@ -234,6 +242,49 @@ fn attach_mouse_listeners() -> Result<(), JsValue> {
         )?;
         closure_mousemove.forget();
     }
+
+    Ok(())
+}
+
+/// Attach a wheel event to allow zoom in/out with the mouse wheel.
+fn attach_wheel_listener() -> Result<(), JsValue> {
+    let window = web_sys::window().unwrap();
+    let document: Document = window.document().unwrap();
+    let canvas_el = document
+        .get_element_by_id("myCanvas")
+        .ok_or("no #myCanvas element")?;
+
+    // We'll do a quick "scale *= factor" approach.  Use SHIFT or trackpad direction
+    // to pick the factor. e.g. factor = 1.1 => 10% zoom in, or 0.9 => 10% zoom out
+    let closure_wheel = Closure::wrap(Box::new(move |e: WheelEvent| {
+        e.prevent_default(); // prevent page scroll
+        let delta = e.delta_y(); // positive => zoom out, negative => zoom in
+        CAMERA.with(|c| {
+            let mut cam = c.borrow_mut();
+
+            if delta < 0.0 {
+                // zoom in
+                cam.scale *= 1.1;
+            } else {
+                // zoom out
+                cam.scale *= 0.9;
+            }
+
+            // clamp scale
+            if cam.scale < 0.1 {
+                cam.scale = 0.1;
+            } else if cam.scale > 50.0 {
+                cam.scale = 50.0;
+            }
+
+            // Optional: we can also keep the mouse position stable
+            // by offsetting pan_x/pan_y so that the point under the mouse
+            // remains the same after zoom. That's more advanced, see below.
+        });
+    }) as Box<dyn FnMut(_)>);
+
+    canvas_el.add_event_listener_with_callback("wheel", closure_wheel.as_ref().unchecked_ref())?;
+    closure_wheel.forget();
 
     Ok(())
 }
