@@ -1,11 +1,9 @@
 // src/wasm.rs
 
-use wasm_bindgen::prelude::*;
-use wasm_bindgen::{closure::Closure, JsCast};
-use web_sys::{
-    CanvasRenderingContext2d, HtmlCanvasElement, Window, Document, console
-};
 use js_sys::Date;
+use wasm_bindgen::prelude::*;
+use wasm_bindgen::{JsCast, closure::Closure};
+use web_sys::{CanvasRenderingContext2d, Document, HtmlCanvasElement, Window, console};
 
 use crate::model::{GLOBAL_STATE, VehicleType};
 
@@ -34,9 +32,11 @@ pub fn main_js() -> Result<(), JsValue> {
         let canvas_el = document.get_element_by_id("myCanvas").unwrap();
         let canvas: HtmlCanvasElement = canvas_el.dyn_into().unwrap();
         let ctx = canvas
-            .get_context("2d").unwrap()
+            .get_context("2d")
             .unwrap()
-            .dyn_into::<CanvasRenderingContext2d>().unwrap();
+            .unwrap()
+            .dyn_into::<CanvasRenderingContext2d>()
+            .unwrap();
 
         let w = canvas.width() as f64;
         let h = canvas.height() as f64;
