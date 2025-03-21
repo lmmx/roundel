@@ -1,12 +1,8 @@
 use console_error_panic_hook as set_panic_hook;
-use js_sys::{Math, Date};
+use js_sys::{Date, Math};
 use std::cell::RefCell;
-use wasm_bindgen::{
-    prelude::*,
-    closure::Closure,
-    JsCast,
-};
-use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, console, Window, Document};
+use wasm_bindgen::{JsCast, closure::Closure, prelude::*};
+use web_sys::{CanvasRenderingContext2d, Document, HtmlCanvasElement, Window, console};
 
 /// A route is a sequence of station coordinates (x, y). Each route might represent
 /// a train line or a bus line. Vehicles travel station-to-station along this route.
@@ -25,8 +21,8 @@ enum VehicleType {
     Train,
 }
 
-/// A vehicle traveling along a route, moving from station to station. 
-/// 
+/// A vehicle traveling along a route, moving from station to station.
+///
 /// # Fields
 /// - `vehicle_type`: whether it's a bus or train
 /// - `route_index`: index into `SharedState::routes`, indicating which route this vehicle is on
@@ -58,9 +54,9 @@ struct Vehicle {
 }
 
 impl Vehicle {
-    /// Advance this vehicle's position along its route by `speed`. If `fraction` exceeds 1.0, 
-    /// that means we've arrived at `next_station`: update `last_station` to `next_station`, 
-    /// compute a new `next_station` (possibly reversing direction if we're at the route end), 
+    /// Advance this vehicle's position along its route by `speed`. If `fraction` exceeds 1.0,
+    /// that means we've arrived at `next_station`: update `last_station` to `next_station`,
+    /// compute a new `next_station` (possibly reversing direction if we're at the route end),
     /// and interpolate (x, y) between those stations.
     ///
     /// # Arguments
@@ -130,10 +126,7 @@ impl SharedState {
             for i in 0..6 {
                 let x_off = (Math::random() as f32) * 30.0 - 15.0;
                 let y_off = (Math::random() as f32) * 30.0 - 15.0;
-                stations.push((
-                    x_base + x_off,
-                    y_start + y_step * (i as f32) + y_off,
-                ));
+                stations.push((x_base + x_off, y_start + y_step * (i as f32) + y_off));
             }
             self.routes.push(Route { stations });
         }
@@ -147,10 +140,7 @@ impl SharedState {
             for i in 0..8 {
                 let x_off = (Math::random() as f32) * 20.0 - 10.0;
                 let y_off = (Math::random() as f32) * 20.0 - 10.0;
-                stations.push((
-                    x_start + x_step * (i as f32) + x_off,
-                    y_base + y_off,
-                ));
+                stations.push((x_start + x_step * (i as f32) + x_off, y_base + y_off));
             }
             self.routes.push(Route { stations });
         }
@@ -179,7 +169,9 @@ impl SharedState {
 
             // Forward vehicles
             for i in 0..count_fwd {
-                if route.stations.len() < 2 { continue; }
+                if route.stations.len() < 2 {
+                    continue;
+                }
                 let last_station = 0;
                 let next_station = 1;
                 // Subdivide [0..1] to avoid overlapping
@@ -206,7 +198,9 @@ impl SharedState {
             // Backward vehicles
             for i in 0..count_bwd {
                 let n_stations = route.stations.len();
-                if n_stations < 2 { continue; }
+                if n_stations < 2 {
+                    continue;
+                }
                 let last_station = n_stations - 1;
                 let next_station = n_stations - 2;
                 let f_lo = (i as f32) / (count_bwd as f32);
@@ -241,7 +235,9 @@ impl SharedState {
 
             // Forward
             for i in 0..count_fwd {
-                if route.stations.len() < 2 { continue; }
+                if route.stations.len() < 2 {
+                    continue;
+                }
                 let last_station = 0;
                 let next_station = 1;
                 let f_lo = (i as f32) / (count_fwd as f32);
@@ -267,7 +263,9 @@ impl SharedState {
             // Backward
             for i in 0..count_bwd {
                 let n_stations = route.stations.len();
-                if n_stations < 2 { continue; }
+                if n_stations < 2 {
+                    continue;
+                }
                 let last_station = n_stations - 1;
                 let next_station = n_stations - 2;
                 let f_lo = (i as f32) / (count_bwd as f32);
@@ -302,14 +300,14 @@ impl SharedState {
     }
 }
 
-// A thread-local global storing our entire simulation state. In single-threaded 
+// A thread-local global storing our entire simulation state. In single-threaded
 // Wasm, this is effectively just a single global, but we don't have to mark it `Sync`.
 thread_local! {
     static GLOBAL_STATE: RefCell<SharedState> = RefCell::new(SharedState::new());
 }
 
 /// The main entry point, called when the Wasm is loaded. We initialize routes/vehicles,
-/// then set up a repeating timer (via `setInterval`) to update positions and draw 
+/// then set up a repeating timer (via `setInterval`) to update positions and draw
 /// everything onto an HTML canvas.
 #[wasm_bindgen(start)]
 pub fn main_js() -> Result<(), JsValue> {
