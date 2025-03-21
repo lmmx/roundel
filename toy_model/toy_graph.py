@@ -22,7 +22,7 @@ class JourneyTimeEstimator(nn.Module):
     x_masked = 2  # Only train on the first 2 features, lat. and long.
 
     def __init__(self, in_channels, hidden_channels, out_channels):
-        super(JourneyTimeEstimator, self).__init__()
+        super().__init__()
         self.conv1 = GCNConv(in_channels, hidden_channels)
         self.conv2 = GCNConv(hidden_channels, out_channels)
 
