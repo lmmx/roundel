@@ -9,6 +9,12 @@ pub struct SharedState {
     pub vehicles: Vec<Vehicle>,
 }
 
+impl Default for SharedState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SharedState {
     pub fn new() -> Self {
         Self {
