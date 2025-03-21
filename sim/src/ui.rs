@@ -4,7 +4,7 @@ use js_sys::Date;
 use std::cell::RefCell;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::{JsCast, closure::Closure};
-use web_sys::{CanvasRenderingContext2d, Document, HtmlCanvasElement, MouseEvent, Window, console};
+use web_sys::{CanvasRenderingContext2d, Document, HtmlCanvasElement, MouseEvent, console};
 
 use crate::model::{GLOBAL_STATE, VehicleType};
 
@@ -115,9 +115,9 @@ fn draw_routes(ctx: &CanvasRenderingContext2d) {
         for (i, route) in state.routes.iter().enumerate() {
             // color routes differently for trains vs buses
             if i < 10 {
-                ctx.set_fill_style(&"rgba(255, 150, 150, 0.6)".into());
+                ctx.set_fill_style_str("rgba(255, 150, 150, 0.6)");
             } else {
-                ctx.set_fill_style(&"rgba(150, 150, 255, 0.6)".into());
+                ctx.set_fill_style_str("rgba(150, 150, 255, 0.6)");
             }
 
             for &(sx, sy) in &route.stations {
@@ -150,8 +150,8 @@ fn draw_vehicles(ctx: &CanvasRenderingContext2d) {
             ctx.arc(draw_x, draw_y, 2.0, 0.0, 6.28).unwrap();
 
             match v.vehicle_type {
-                VehicleType::Bus => ctx.set_fill_style(&"blue".into()),
-                VehicleType::Train => ctx.set_fill_style(&"red".into()),
+                VehicleType::Bus => ctx.set_fill_style_str("blue"),
+                VehicleType::Train => ctx.set_fill_style_str("red"),
             }
             ctx.fill();
         }
