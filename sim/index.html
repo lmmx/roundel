@@ -42,6 +42,16 @@
       display: block;
     }
 
+    .slider-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .slider-container input {
+      flex-grow: 1;
+    }
+
     /* This positions the debug checkbox in the top-right corner */
     #debugContainer {
       position: absolute;
@@ -65,16 +75,11 @@
     </div>
 
     <div class="control-group">
-      <span>Simulation Speed: </span>
-      <label><input type="radio" name="fps" id="fps30" value="30"> 30 FPS</label>
-      <label><input type="radio" name="fps" id="fps60" value="60" checked> 60 FPS</label>
-    </div>
-
-    <div class="control-group">
-      <label>
-        <input type="checkbox" id="autoFps" checked>
-        Auto-adjust FPS based on performance
-      </label>
+      <div class="slider-container">
+        <span>Simulation Speed: </span>
+        <input type="range" id="fpsSlider" min="1" max="120" value="30">
+        <span id="fpsValue"></span>
+      </div>
     </div>
   </div>
 

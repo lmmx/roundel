@@ -129,6 +129,28 @@ pub fn attach_control_listeners() -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
 
+    // Get the current FPS value from the control
+    let initial_fps = SIMULATION_CONTROL.with(|cell| {
+        let control = cell.borrow();
+        if control.update_interval_ms > 0 {
+            1000 / control.update_interval_ms
+        } else {
+            30 // Default
+        }
+    });
+
+    // Set the initial FPS display value
+    if let Some(fps_value) = document.get_element_by_id("fpsValue") {
+        fps_value.set_text_content(Some(&format!("{} FPS", initial_fps)));
+    }
+
+    // Also set the slider to match the current FPS value
+    if let Some(fps_slider) = document.get_element_by_id("fpsSlider") {
+        if let Ok(slider) = fps_slider.dyn_into::<HtmlInputElement>() {
+            slider.set_value(&initial_fps.to_string());
+        }
+    }
+
     // Pause button
     if let Some(pause_button) = document.get_element_by_id("pauseButton") {
         let pause_button = pause_button.dyn_into::<HtmlElement>()?;
@@ -153,73 +175,39 @@ pub fn attach_control_listeners() -> Result<(), JsValue> {
         closure_pause.forget();
     }
 
-    // FPS radio buttons
-    if let Some(fps_30) = document.get_element_by_id("fps30") {
-        let fps_30 = fps_30.dyn_into::<HtmlInputElement>()?;
+    // FPS slider
+    if let Some(fps_slider) = document.get_element_by_id("fpsSlider") {
+        let fps_slider = fps_slider.dyn_into::<HtmlInputElement>()?;
 
-        let closure_fps30 = Closure::wrap(Box::new(move |_: Event| {
-            let _ = change_animation_interval(33); // ~30 FPS
-        }) as Box<dyn FnMut(_)>);
-
-        fps_30
-            .add_event_listener_with_callback("change", closure_fps30.as_ref().unchecked_ref())?;
-        closure_fps30.forget();
-    }
-
-    if let Some(fps_60) = document.get_element_by_id("fps60") {
-        let fps_60 = fps_60.dyn_into::<HtmlInputElement>()?;
-
-        let closure_fps60 = Closure::wrap(Box::new(move |_: Event| {
-            let _ = change_animation_interval(16); // ~60 FPS
-        }) as Box<dyn FnMut(_)>);
-
-        fps_60
-            .add_event_listener_with_callback("change", closure_fps60.as_ref().unchecked_ref())?;
-        closure_fps60.forget();
-    }
-
-    // Auto FPS checkbox
-    if let Some(auto_fps) = document.get_element_by_id("autoFps") {
-        let auto_fps = auto_fps.dyn_into::<HtmlInputElement>()?;
-
-        let closure_auto = Closure::wrap(Box::new(move |e: Event| {
+        let closure_fps_slider = Closure::wrap(Box::new(move |e: Event| {
             if let Some(target) = e.target() {
-                if let Ok(checkbox) = target.dyn_into::<HtmlInputElement>() {
-                    let checked = checkbox.checked();
+                if let Ok(slider) = target.dyn_into::<HtmlInputElement>() {
+                    if let Ok(fps) = slider.value().parse::<u32>() {
+                        // Convert FPS to interval in milliseconds
+                        let interval_ms = if fps > 0 { 1000 / fps } else { 33 }; // Default to ~30 FPS if invalid
 
-                    SIMULATION_CONTROL.with(|cell| {
-                        let mut control = cell.borrow_mut();
-                        control.auto_adjust = checked;
-
-                        // If auto-adjust is enabled, reset the frame counter and times
-                        if checked {
-                            control.frame_count = 0;
-                            control.total_frame_time = 0.0;
-                        }
-                    });
-
-                    // Enable/disable the FPS radio buttons based on auto setting
-                    if let Some(window) = web_sys::window() {
-                        if let Some(document) = window.document() {
-                            if let Some(fps30) = document.get_element_by_id("fps30") {
-                                if let Ok(radio) = fps30.dyn_into::<HtmlInputElement>() {
-                                    radio.set_disabled(checked);
-                                }
-                            }
-                            if let Some(fps60) = document.get_element_by_id("fps60") {
-                                if let Ok(radio) = fps60.dyn_into::<HtmlInputElement>() {
-                                    radio.set_disabled(checked);
+                        // Update the FPS value display
+                        if let Some(window) = web_sys::window() {
+                            if let Some(document) = window.document() {
+                                if let Some(fps_value) = document.get_element_by_id("fpsValue") {
+                                    fps_value.set_text_content(Some(&format!("{} FPS", fps)));
                                 }
                             }
                         }
+
+                        let _ = change_animation_interval(interval_ms);
                     }
                 }
             }
         }) as Box<dyn FnMut(_)>);
 
-        auto_fps
-            .add_event_listener_with_callback("change", closure_auto.as_ref().unchecked_ref())?;
-        closure_auto.forget();
+        // Listen for both input (live updates while dragging) and change (final value)
+        fps_slider.add_event_listener_with_callback(
+            "input",
+            closure_fps_slider.as_ref().unchecked_ref(),
+        )?;
+
+        closure_fps_slider.forget();
     }
 
     Ok(())

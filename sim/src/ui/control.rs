@@ -7,9 +7,6 @@ use std::cell::RefCell;
 pub struct SimulationControl {
     pub paused: bool,
     pub update_interval_ms: u32,
-    pub auto_adjust: bool,
-    pub frame_count: u32,
-    pub total_frame_time: f64,
     pub vehicle_counts: VehicleCounts,
 }
 
@@ -24,10 +21,7 @@ pub struct VehicleCounts {
 thread_local! {
     pub static SIMULATION_CONTROL: RefCell<SimulationControl> = RefCell::new(SimulationControl {
         paused: false,
-        update_interval_ms: 16, // Default to ~60fps
-        auto_adjust: true,
-        frame_count: 0,
-        total_frame_time: 0.0,
+        update_interval_ms: 33, // Default to ~30fps
         vehicle_counts: VehicleCounts::default(),
     });
 }
@@ -54,38 +48,5 @@ impl SimulationControl {
 
         counts.total = counts.buses + counts.trains;
         self.vehicle_counts = counts;
-    }
-
-    /// Auto-adjust the update interval based on performance
-    pub fn auto_adjust_interval(&mut self, frame_time_ms: f64) {
-        // Only consider the first 10 frames for auto-adjustment
-        if self.frame_count < 10 {
-            self.total_frame_time += frame_time_ms;
-            self.frame_count += 1;
-
-            // After collecting 10 frames of data, make a decision
-            if self.frame_count == 10 {
-                let avg_frame_time = self.total_frame_time / 10.0;
-
-                // If average frame time is > 8ms (allowing some headroom),
-                // reduce to 30fps (33ms interval) instead of 60fps (16ms interval)
-                if avg_frame_time > 8.0 {
-                    self.update_interval_ms = 33; // ~30fps
-                } else {
-                    self.update_interval_ms = 16; // ~60fps
-                }
-
-                web_sys::console::log_1(
-                    &format!(
-                        "Auto-adjusted to {}ms interval (avg frame time: {:.2}ms)",
-                        self.update_interval_ms, avg_frame_time
-                    )
-                    .into(),
-                );
-
-                // Disable auto-adjust after initial setting
-                self.auto_adjust = false;
-            }
-        }
     }
 }

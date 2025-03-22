@@ -107,7 +107,6 @@ async fn load_tsv_files() -> Result<(String, String), JsValue> {
 }
 
 /// Creates a closure that runs repeatedly and updates + draws.
-/// The interval will auto-adjust based on performance.
 fn start_animation_loop() -> Result<(), JsValue> {
     let closure = Closure::wrap(Box::new(move || {
         let t_start = Date::now();
@@ -156,17 +155,9 @@ fn start_animation_loop() -> Result<(), JsValue> {
 
         // Log performance
         console::log_1(&format!("Update & draw took {:.3} ms", frame_time_ms).into());
-
-        // Auto-adjust interval if enabled
-        SIMULATION_CONTROL.with(|cell| {
-            let mut control = cell.borrow_mut();
-            if control.auto_adjust {
-                control.auto_adjust_interval(frame_time_ms);
-            }
-        });
     }) as Box<dyn FnMut()>);
 
-    // Set the initial interval (will be adjusted later if auto_adjust is enabled)
+    // Set the initial interval
     let update_interval = SIMULATION_CONTROL.with(|cell| cell.borrow().update_interval_ms);
 
     let window = web_sys::window().unwrap();
