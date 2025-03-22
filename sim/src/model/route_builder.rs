@@ -64,8 +64,9 @@ pub fn build_real_train_routes(tsv_content: &str) -> Vec<Route> {
 
         // Generate intermediate points to make a realistic path
         let stations = generate_route_path(
-            start_xy, end_xy, 3,   // Fewer waypoints for trains
-            0.2, // moderate randomness
+            start_xy, end_xy, 3,     // Fewer waypoints for trains
+            0.2,   // moderate randomness
+            false, // Not a bus route
         );
 
         train_routes.push(Route { stations });
@@ -93,12 +94,13 @@ pub fn build_real_bus_routes(tsv_content: &str) -> Vec<Route> {
         let start_xy = projection.project(start_coords.0, start_coords.1);
         let end_xy = projection.project(end_coords.0, end_coords.1);
 
-        // Generate intermediate points with more waypoints for buses
+        // Generate intermediate points with straight lines for buses
         let stations = generate_route_path(
             start_xy,
             end_xy,
-            5 + (Math::random() * 5.0) as usize, // 5-10 waypoints
-            0.3,                                 // more randomness for buses
+            3 + (Math::random() * 4.0) as usize, // 3-7 waypoints
+            0.0,  // no randomness needed for buses as they'll be in straight lines
+            true, // This is a bus route
         );
 
         bus_routes.push(Route { stations });
@@ -167,7 +169,8 @@ pub fn build_random_train_routes() -> Vec<Route> {
             central_xy,
             end_xy,
             num_stations,
-            0.2, // moderate randomness
+            0.2,   // moderate randomness
+            false, // Not a bus route
         );
 
         train_routes.push(Route { stations });
@@ -176,18 +179,18 @@ pub fn build_random_train_routes() -> Vec<Route> {
     train_routes
 }
 
-/// Build bus routes that follow a more complex pattern
+/// Build bus routes that are linear and evenly spaced
+///
+/// Create a mix of:
+/// 1. Radial routes (from center outward)
+/// 2. Orbital routes (circular)
+/// 3. Cross-town routes (north-south or east-west)
 pub fn build_random_bus_routes() -> Vec<Route> {
     let projection = GeoProjection::london_centered(CANVAS_WIDTH, CANVAS_HEIGHT);
     let mut bus_routes = Vec::new();
 
     // Central London coordinates
     let central_london = (51.51, -0.12);
-
-    // Create a mix of:
-    // 1. Radial routes (from center outward)
-    // 2. Orbital routes (circular)
-    // 3. Cross-town routes (north-south or east-west)
 
     // 1. Radial routes (30 routes)
     for _ in 0..30 {
@@ -203,45 +206,58 @@ pub fn build_random_bus_routes() -> Vec<Route> {
         let start_xy = projection.project(central_london.0, central_london.1);
         let end_xy = projection.project(end_lat, end_lng);
 
-        // Generate path with waypoints
+        // Generate path with straight lines for buses
         let stations = generate_route_path(
             start_xy,
             end_xy,
-            5 + (Math::random() * 7.0) as usize, // 5-12 stations
-            0.3,                                 // moderate randomness
+            3 + (Math::random() * 4.0) as usize, // 3-7 stops
+            0.0,                                 // no randomness for buses
+            true,                                // This is a bus route
         );
 
         bus_routes.push(Route { stations });
     }
 
-    // 2. Orbital routes (20 routes)
+    // 2. Orbital routes (20 routes) - modified to have straighter segments
     for i in 0..20 {
         let radius = 0.03 + (i as f32 / 20.0) * 0.15; // 3km to 18km approx
         let start_angle = Math::random() as f32 * 2.0 * std::f32::consts::PI;
 
-        let mut stations = Vec::new();
-        let num_segments = 8 + (Math::random() * 8.0) as usize; // 8-16 segments
+        // For orbital routes, we'll create segments that are straight between points
+        let segments = 6 + (Math::random() * 4.0) as usize; // 6-10 segments
 
-        for j in 0..=num_segments {
-            let angle = start_angle + (j as f32 / num_segments as f32) * 2.0 * std::f32::consts::PI;
+        let mut route_points = Vec::new();
+
+        // Create the points of the orbital polygon
+        for j in 0..segments {
+            let angle = start_angle + (j as f32 / segments as f32) * 2.0 * std::f32::consts::PI;
             let lat = central_london.0 + radius * angle.sin();
             let lng = central_london.1 + radius * angle.cos();
             let xy = projection.project(lat, lng);
-
-            // Add some randomness to the orbital path
-            let rand_offset = radius * 0.1; // 10% of radius
-            let x_offset = (Math::random() as f32 * 2.0 - 1.0) * rand_offset * projection.scale;
-            let y_offset = (Math::random() as f32 * 2.0 - 1.0) * rand_offset * projection.scale;
-
-            stations.push((xy.0 + x_offset, xy.1 + y_offset));
+            route_points.push(xy);
         }
 
-        // Close the loop for orbital routes
-        if !stations.is_empty() {
-            stations.push(stations[0]);
-        }
+        // Close the loop
+        route_points.push(route_points[0]);
 
-        bus_routes.push(Route { stations });
+        // Now create routes between each pair of points
+        for j in 0..route_points.len() - 1 {
+            let start_point = route_points[j];
+            let end_point = route_points[j + 1];
+
+            // Create a straight line route between these two points
+            let segment_stations = generate_route_path(
+                start_point,
+                end_point,
+                1 + (Math::random() * 2.0) as usize, // 1-3 stops between major points
+                0.0,                                 // no randomness
+                true,                                // This is a bus route
+            );
+
+            bus_routes.push(Route {
+                stations: segment_stations,
+            });
+        }
     }
 
     // 3. Cross-town routes (50 routes)
@@ -273,12 +289,13 @@ pub fn build_random_bus_routes() -> Vec<Route> {
         let start_xy = projection.project(start_lat, start_lng);
         let end_xy = projection.project(end_lat, end_lng);
 
-        // Generate path with waypoints
+        // Generate straight line path for buses
         let stations = generate_route_path(
             start_xy,
             end_xy,
-            6 + (Math::random() * 10.0) as usize, // 6-16 stations
-            0.25,                                 // moderate randomness
+            3 + (Math::random() * 5.0) as usize, // 3-8 stops
+            0.0,                                 // no randomness for buses
+            true,                                // This is a bus route
         );
 
         bus_routes.push(Route { stations });

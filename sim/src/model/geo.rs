@@ -96,13 +96,14 @@ pub fn parse_coordinate(coord_str: &str) -> Result<(f32, f32), &'static str> {
     Ok((lat, lng))
 }
 
-/// Generates sample intermediate points between two coordinates
-/// Simulates a route path with some natural curves instead of a straight line
+/// Generates intermediate points between two coordinates
+/// Keeps bus routes in a straight line between termini, with smaller stops
 pub fn generate_route_path(
     start: (f32, f32),
     end: (f32, f32),
     waypoints: usize,
     randomness: f32,
+    is_bus_route: bool,
 ) -> Vec<(f32, f32)> {
     use js_sys::Math;
 
@@ -113,21 +114,32 @@ pub fn generate_route_path(
 
     // Generate intermediate waypoints
     if waypoints > 0 {
-        // Linear interpolation with random offsets
-        for i in 1..=waypoints {
-            let t = i as f32 / (waypoints as f32 + 1.0);
-            let base_x = start.0 + (end.0 - start.0) * t;
-            let base_y = start.1 + (end.1 - start.1) * t;
+        if is_bus_route {
+            // For bus routes: Create stops along a straight line between termini
+            for i in 1..=waypoints {
+                let t = i as f32 / (waypoints as f32 + 1.0);
+                let x = start.0 + (end.0 - start.0) * t;
+                let y = start.1 + (end.1 - start.1) * t;
 
-            // Add random offset scaled by distance and randomness factor
-            let dx = Math::random() as f32 * randomness * (end.0 - start.0).abs();
-            let dy = Math::random() as f32 * randomness * (end.1 - start.1).abs();
+                path.push((x, y));
+            }
+        } else {
+            // For train routes: Linear interpolation with random offsets
+            for i in 1..=waypoints {
+                let t = i as f32 / (waypoints as f32 + 1.0);
+                let base_x = start.0 + (end.0 - start.0) * t;
+                let base_y = start.1 + (end.1 - start.1) * t;
 
-            // Apply offset (randomly positive or negative)
-            let x = base_x + if Math::random() > 0.5 { dx } else { -dx };
-            let y = base_y + if Math::random() > 0.5 { dy } else { -dy };
+                // Add random offset scaled by distance and randomness factor
+                let dx = Math::random() as f32 * randomness * (end.0 - start.0).abs();
+                let dy = Math::random() as f32 * randomness * (end.1 - start.1).abs();
 
-            path.push((x, y));
+                // Apply offset (randomly positive or negative)
+                let x = base_x + if Math::random() > 0.5 { dx } else { -dx };
+                let y = base_y + if Math::random() > 0.5 { dy } else { -dy };
+
+                path.push((x, y));
+            }
         }
     }
 
