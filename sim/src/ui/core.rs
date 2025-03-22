@@ -20,12 +20,12 @@ static ANIMATION_INTERVAL_ID: OnceCell<i32> = OnceCell::new();
 /// 3) Attach mouse events for panning and wheel event for zoom
 /// 4) Attach control listeners for simulation controls
 /// 5) Load real data from TSV files
+/// 6) Attach a debug-mode checkbox listener
 #[wasm_bindgen(start)]
 pub fn main_js() -> Result<(), JsValue> {
     console_error_panic_hook::set_once();
 
-    // Decide whether or not to allow random fallback
-    // (true means random fallback is allowed if no real data is loaded)
+    // Decide whether or not to allow random fallback initially
     let debug_mode = false;
 
     GLOBAL_STATE.with(|cell| {
@@ -56,6 +56,9 @@ pub fn main_js() -> Result<(), JsValue> {
     // 5) Load real TSV data and update routes
     load_real_route_data();
 
+    // 6) Tie the debug checkbox to set_debug_mode
+    attach_debug_checkbox_listener()?;
+
     Ok(())
 }
 
@@ -82,9 +85,6 @@ fn load_real_route_data() {
             }
             Err(e) => {
                 console::log_1(&format!("Error loading TSV files: {:?}", e).into());
-
-                // If debug_mode == false, no fallback will happen,
-                // so user just sees an empty simulation.
                 console::log_1(&"Continuing without real data.".into());
             }
         }
@@ -216,4 +216,40 @@ pub fn toggle_pause() -> bool {
         console::log_1(&format!("Simulation paused: {}", control.paused).into());
         control.paused
     })
+}
+
+/// Listens for changes to the "debugModeCheckbox" in the top-right
+fn attach_debug_checkbox_listener() -> Result<(), JsValue> {
+    let window = web_sys::window().ok_or("No window object")?;
+    let document = window.document().ok_or("No document object")?;
+    let checkbox_el = document
+        .get_element_by_id("debugModeCheckbox")
+        .ok_or("Could not find element #debugModeCheckbox")?;
+
+    // Cast it to HtmlInputElement so we can read `.checked`
+    let checkbox: web_sys::HtmlInputElement = checkbox_el
+        .dyn_into()
+        .map_err(|_| "Element is not an HtmlInputElement")?;
+
+    // Create a closure that fires on "change"
+    let cb_clone = checkbox.clone();
+    let closure = Closure::wrap(Box::new(move || {
+        let is_checked = cb_clone.checked();
+        set_debug_mode(is_checked);
+    }) as Box<dyn FnMut()>);
+
+    checkbox.add_event_listener_with_callback("change", closure.as_ref().unchecked_ref())?;
+    closure.forget(); // keep closure alive
+
+    Ok(())
+}
+
+/// Exported function to set debug mode at runtime (also called by the checkbox)
+#[wasm_bindgen]
+pub fn set_debug_mode(enable: bool) {
+    GLOBAL_STATE.with(|cell| {
+        let mut state = cell.borrow_mut();
+        state.set_debug_mode(enable);
+    });
+    console::log_1(&format!("debug_mode set to {}", enable).into());
 }
