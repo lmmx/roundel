@@ -8,6 +8,7 @@ use js_sys::Date;
 use once_cell::sync::OnceCell;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::{JsCast, closure::Closure};
+use wasm_bindgen_futures::spawn_local;
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, console};
 
 // Use OnceCell to store our interval ID so we can clear and reset it
@@ -18,6 +19,7 @@ static ANIMATION_INTERVAL_ID: OnceCell<i32> = OnceCell::new();
 /// 2) Start the update loop (with adaptive interval)
 /// 3) Attach mouse events for panning and wheel event for zoom
 /// 4) Attach control listeners for simulation controls
+/// 5) Load real data from TSV files
 #[wasm_bindgen(start)]
 pub fn main_js() -> Result<(), JsValue> {
     console_error_panic_hook::set_once();
@@ -43,7 +45,54 @@ pub fn main_js() -> Result<(), JsValue> {
     // 4) Attach simulation control listeners
     attach_control_listeners()?;
 
+    // 5) Load real TSV data and update routes
+    load_real_route_data();
+
     Ok(())
+}
+
+/// Asynchronously load TSV files and update routes with real data
+fn load_real_route_data() {
+    console::log_1(&"Starting to load real route data...".into());
+
+    // Use wasm_bindgen_futures to spawn an async task
+    spawn_local(async {
+        match load_tsv_files().await {
+            Ok((bus_data, tube_data)) => {
+                console::log_1(&"Successfully loaded TSV files, updating routes".into());
+
+                // Update routes with real data
+                GLOBAL_STATE.with(|cell| {
+                    let mut state = cell.borrow_mut();
+                    state.update_with_real_routes(&bus_data, &tube_data);
+                });
+
+                // Update vehicle counts after the change
+                SIMULATION_CONTROL.with(|cell| {
+                    cell.borrow_mut().update_vehicle_counts();
+                });
+            }
+            Err(e) => {
+                console::log_1(&format!("Error loading TSV files: {:?}", e).into());
+                console::log_1(&"Continuing with random routes".into());
+            }
+        }
+    });
+}
+
+/// Fetch both TSV files
+async fn load_tsv_files() -> Result<(String, String), JsValue> {
+    use crate::model::route_builder::fetch_tsv_file;
+
+    // Fetch both files in parallel
+    let bus_data_future = fetch_tsv_file("bus_routes.tsv");
+    let tube_data_future = fetch_tsv_file("tube_routes.tsv");
+
+    // Await both futures
+    let bus_data = bus_data_future.await?;
+    let tube_data = tube_data_future.await?;
+
+    Ok((bus_data, tube_data))
 }
 
 /// Creates a closure that runs repeatedly and updates + draws.

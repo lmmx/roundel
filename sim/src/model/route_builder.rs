@@ -1,12 +1,138 @@
 // src/model/route_builder.rs
 
 use crate::model::Route;
-use crate::model::geo::{GeoProjection, generate_route_path};
+use crate::model::geo::{GeoProjection, generate_route_path, parse_coordinate};
 use js_sys::Math;
+use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::JsFuture;
+use web_sys::{Request, RequestInit, Response};
 
 // Constant for canvas dimensions
 const CANVAS_WIDTH: f32 = 1000.0;
 const CANVAS_HEIGHT: f32 = 1000.0;
+
+/// Parse TSV file content into route data
+fn parse_tsv_data(content: &str) -> Vec<(String, String, (f32, f32), String, (f32, f32))> {
+    let mut routes = Vec::new();
+
+    // Skip header line
+    let lines = content.lines().skip(1);
+
+    for line in lines {
+        let fields: Vec<&str> = line.split('\t').collect();
+        if fields.len() >= 5 {
+            let route_name = fields[0].to_string();
+            let start_name = fields[1].to_string();
+
+            // Try to parse start coordinates
+            let start_coords = match parse_coordinate(fields[2]) {
+                Ok(coords) => coords,
+                Err(_) => continue, // Skip invalid entries
+            };
+
+            let end_name = fields[3].to_string();
+
+            // Try to parse end coordinates
+            let end_coords = match parse_coordinate(fields[4]) {
+                Ok(coords) => coords,
+                Err(_) => continue, // Skip invalid entries
+            };
+
+            routes.push((route_name, start_name, start_coords, end_name, end_coords));
+        }
+    }
+
+    web_sys::console::log_1(&format!("Parsed {} routes from TSV", routes.len()).into());
+    routes
+}
+
+/// Build train routes from the real TSV data
+pub fn build_real_train_routes(tsv_content: &str) -> Vec<Route> {
+    // Parse the TSV data
+    let route_data = parse_tsv_data(tsv_content);
+
+    // Create the projection
+    let projection = GeoProjection::london_centered(CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    // Build the routes
+    let mut train_routes = Vec::new();
+
+    for (route_name, _, start_coords, _, end_coords) in route_data {
+        // Project coordinates to canvas space
+        let start_xy = projection.project(start_coords.0, start_coords.1);
+        let end_xy = projection.project(end_coords.0, end_coords.1);
+
+        // Generate intermediate points to make a realistic path
+        let stations = generate_route_path(
+            start_xy, end_xy, 3,   // Fewer waypoints for trains
+            0.2, // moderate randomness
+        );
+
+        train_routes.push(Route { stations });
+
+        // Log the route being created
+        web_sys::console::log_1(&format!("Created train route: {}", route_name).into());
+    }
+
+    train_routes
+}
+
+/// Build bus routes from the real TSV data
+pub fn build_real_bus_routes(tsv_content: &str) -> Vec<Route> {
+    // Parse the TSV data
+    let route_data = parse_tsv_data(tsv_content);
+
+    // Create the projection
+    let projection = GeoProjection::london_centered(CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    // Build the routes
+    let mut bus_routes = Vec::new();
+
+    for (route_name, _, start_coords, _, end_coords) in route_data {
+        // Project coordinates to canvas space
+        let start_xy = projection.project(start_coords.0, start_coords.1);
+        let end_xy = projection.project(end_coords.0, end_coords.1);
+
+        // Generate intermediate points with more waypoints for buses
+        let stations = generate_route_path(
+            start_xy,
+            end_xy,
+            5 + (Math::random() * 5.0) as usize, // 5-10 waypoints
+            0.3,                                 // more randomness for buses
+        );
+
+        bus_routes.push(Route { stations });
+
+        // Log the route being created
+        web_sys::console::log_1(&format!("Created bus route: {}", route_name).into());
+    }
+
+    bus_routes
+}
+
+/// Fetch TSV file content using JavaScript fetch API
+pub async fn fetch_tsv_file(path: &str) -> Result<String, JsValue> {
+    let opts = RequestInit::new();
+    opts.set_method("GET");
+
+    let request = Request::new_with_str_and_init(path, &opts)?;
+
+    let window = web_sys::window().unwrap();
+    let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
+    let resp: Response = resp_value.dyn_into()?;
+
+    // Check if the response is ok (status in the range 200-299)
+    if !resp.ok() {
+        return Err(JsValue::from_str(&format!(
+            "Failed to fetch {}: status {}",
+            path,
+            resp.status()
+        )));
+    }
+
+    let text = JsFuture::from(resp.text()?).await?;
+    Ok(text.as_string().unwrap())
+}
 
 /// Build train routes that approximately follow the pattern of London tube lines
 pub fn build_random_train_routes() -> Vec<Route> {
@@ -160,103 +286,3 @@ pub fn build_random_bus_routes() -> Vec<Route> {
 
     bus_routes
 }
-
-// COMMENTED CODE FOR FUTURE IMPLEMENTATION:
-// This shows how you would parse and use the real TSV data
-
-/*
-/// Parse TSV file content into route data
-fn parse_tsv_data(content: &str) -> Vec<(String, String, (f32, f32), String, (f32, f32))> {
-    let mut routes = Vec::new();
-
-    // Skip header line
-    let lines = content.lines().skip(1);
-
-    for line in lines {
-        let fields: Vec<&str> = line.split('\t').collect();
-        if fields.len() >= 5 {
-            let route_name = fields[0].to_string();
-            let start_name = fields[1].to_string();
-
-            // Try to parse start coordinates
-            let start_coords = match parse_coordinate(fields[2]) {
-                Ok(coords) => coords,
-                Err(_) => continue, // Skip invalid entries
-            };
-
-            let end_name = fields[3].to_string();
-
-            // Try to parse end coordinates
-            let end_coords = match parse_coordinate(fields[4]) {
-                Ok(coords) => coords,
-                Err(_) => continue, // Skip invalid entries
-            };
-
-            routes.push((route_name, start_name, start_coords, end_name, end_coords));
-        }
-    }
-
-    routes
-}
-
-/// Build train routes from the real TSV data
-pub fn build_real_train_routes() -> Vec<Route> {
-    // Step 1: Load the TSV content (this would need a different approach in WASM)
-    // For example, using JavaScript to fetch the file and pass it to Rust
-    let tsv_content = match fetch_tsv_file("public/tube_routes.tsv") {
-        Some(content) => content,
-        None => {
-            console::log_1(&"Failed to load tube routes, using random fallback".into());
-            return build_random_train_routes();
-        }
-    };
-
-    // Step 2: Parse the TSV data
-    let route_data = parse_tsv_data(&tsv_content);
-
-    // Step 3: Create the projection
-    let projection = GeoProjection::london_centered(CANVAS_WIDTH, CANVAS_HEIGHT);
-
-    // Step 4: Build the routes
-    let mut train_routes = Vec::new();
-
-    for (route_name, _, start_coords, _, end_coords) in route_data {
-        // Project coordinates to canvas space
-        let start_xy = projection.project(start_coords.0, start_coords.1);
-        let end_xy = projection.project(end_coords.0, end_coords.1);
-
-        // Generate intermediate points to make a realistic path
-        let stations = generate_route_path(
-            start_xy,
-            end_xy,
-            3, // Fewer waypoints for trains
-            0.2 // moderate randomness
-        );
-
-        train_routes.push(Route { stations });
-
-        // Optionally log the route being created
-        console::log_1(&format!("Created train route: {}", route_name).into());
-    }
-
-    train_routes
-}
-
-/// Build bus routes from the real TSV data
-pub fn build_real_bus_routes() -> Vec<Route> {
-    // Similar approach to build_real_train_routes
-    // ...
-
-    // For now, return random routes
-    build_random_bus_routes()
-}
-
-/// Fetch TSV file content (would need JavaScript interop)
-fn fetch_tsv_file(path: &str) -> Option<String> {
-    // This is a placeholder - in a real implementation you would:
-    // 1. Use JavaScript to fetch the file
-    // 2. Pass the content to Rust via wasm_bindgen
-
-    None // For now, always return None so we fall back to random routes
-}
-*/
