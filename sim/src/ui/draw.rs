@@ -1,5 +1,6 @@
 // src/ui/draw.rs
 
+use std::f64::consts::TAU;
 use super::camera::CAMERA;
 use super::control::get_vehicle_counts;
 use crate::model::{GLOBAL_STATE, VehicleType};
@@ -116,7 +117,7 @@ pub fn draw_vehicles(ctx: &CanvasRenderingContext2d) {
                 2.0 * scale as f64
             };
             
-            ctx.arc(draw_x as f64, draw_y as f64, radius, 0.0, 6.28).unwrap();
+            ctx.arc(draw_x as f64, draw_y as f64, radius, 0.0, TAU).unwrap();
 
             // Color based on vehicle type and selection
             match v.vehicle_type {
@@ -140,7 +141,7 @@ pub fn draw_vehicles(ctx: &CanvasRenderingContext2d) {
             // Draw a highlight ring around selected vehicle
             if is_selected {
                 ctx.begin_path();
-                ctx.arc(draw_x as f64, draw_y as f64, 6.0 * scale as f64, 0.0, 6.28).unwrap();
+                ctx.arc(draw_x as f64, draw_y as f64, 6.0 * scale as f64, 0.0, TAU).unwrap();
                 ctx.set_stroke_style_str("yellow");
                 ctx.set_line_width(2.0);
                 ctx.stroke();

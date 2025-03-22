@@ -27,7 +27,7 @@ thread_local! {
     pub static CAMERA: RefCell<Camera> = const { RefCell::new(Camera {
         pan_x: 0.0,
         pan_y: 0.0,
-        scale: 1.0
+        scale: 1.0,
         selected_vehicle_index: None,
         follow_mode: false
     }) };

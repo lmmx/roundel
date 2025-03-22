@@ -1,8 +1,10 @@
 // src/ui/core.rs
 
 use super::control::SIMULATION_CONTROL;
+use crate::ui::camera::CAMERA;
 use super::draw::{draw_routes, draw_stats, draw_vehicles};
 use super::input::{attach_control_listeners, attach_mouse_listeners, attach_wheel_listener};
+use web_sys::window;
 use crate::model::GLOBAL_STATE;
 use crate::ui::input::attach_vehicle_selection_listener;
 use js_sys::Date;
@@ -205,15 +207,17 @@ fn start_animation_loop() -> Result<(), JsValue> {
                         if index < state.vehicles.len() {
                             let vehicle = &state.vehicles[index];
                             // Get canvas dimensions
-                            if let Some(document) = window.document() {
-                                if let Some(canvas_el) = document.get_element_by_id("myCanvas") {
-                                    if let Ok(canvas) = canvas_el.dyn_into::<HtmlCanvasElement>() {
-                                        let canvas_width = canvas.width() as f32;
-                                        let canvas_height = canvas.height() as f32;
+                            if let Some(win) = window() {
+                                if let Some(document) = win.document() {
+                                    if let Some(canvas_el) = document.get_element_by_id("myCanvas") {
+                                        if let Ok(canvas) = canvas_el.dyn_into::<HtmlCanvasElement>() {
+                                            let canvas_width = canvas.width() as f32;
+                                            let canvas_height = canvas.height() as f32;
 
-                                        // Center camera on selected vehicle
-                                        cam.pan_x = vehicle.x - (canvas_width / cam.scale / 2.0);
-                                        cam.pan_y = vehicle.y - (canvas_height / cam.scale / 2.0);
+                                            // Center camera on selected vehicle
+                                            cam.pan_x = vehicle.x - (canvas_width / cam.scale / 2.0);
+                                            cam.pan_y = vehicle.y - (canvas_height / cam.scale / 2.0);
+                                        }
                                     }
                                 }
                             }
