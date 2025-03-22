@@ -1,5 +1,6 @@
 // src/model/mod.rs
 
+pub mod geo;
 pub mod route;
 pub mod route_builder;
 pub mod state;
