@@ -9,7 +9,7 @@ use crate::model::GLOBAL_STATE;
 use crate::ui::camera::CAMERA;
 use crate::ui::input::attach_vehicle_selection_listener;
 use js_sys::Date;
-use once_cell::sync::OnceCell;
+use std::cell::RefCell;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::{JsCast, closure::Closure};
 use wasm_bindgen_futures::spawn_local;
@@ -17,7 +17,9 @@ use web_sys::window;
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, console};
 
 // Use OnceCell to store our interval ID so we can clear and reset it
-static ANIMATION_INTERVAL_ID: OnceCell<i32> = OnceCell::new();
+thread_local! {
+    static ANIMATION_INTERVAL_ID: RefCell<Option<i32>> = RefCell::new(None);
+}
 
 /// Called once when the Wasm module loads:
 /// 1) Read the checkbox state to determine initial mode
@@ -276,7 +278,9 @@ fn start_animation_loop() -> Result<(), JsValue> {
     )?;
 
     // Store the interval ID so we can update it later
-    let _ = ANIMATION_INTERVAL_ID.set(interval_id);
+    ANIMATION_INTERVAL_ID.with(|cell| {
+        *cell.borrow_mut() = Some(interval_id);
+    });
 
     // Keep the closure alive
     closure.forget();
@@ -292,17 +296,18 @@ pub fn change_animation_interval(new_interval_ms: u32) -> Result<(), JsValue> {
         cell.borrow_mut().update_interval_ms = new_interval_ms;
     });
 
-    // Get the old interval ID
-    if let Some(old_interval_id) = ANIMATION_INTERVAL_ID.get() {
-        // Clear the old interval
-        let window = web_sys::window().unwrap();
-        window.clear_interval_with_handle(*old_interval_id);
+    // Clear the old interval
+    ANIMATION_INTERVAL_ID.with(|cell| {
+        if let Some(old_interval_id) = *cell.borrow() {
+            let window = web_sys::window().unwrap();
+            window.clear_interval_with_handle(old_interval_id);
+        }
+    });
 
-        // Start a new animation loop
-        start_animation_loop()?;
+    // Start a new animation loop
+    start_animation_loop()?;
 
-        console::log_1(&format!("Changed animation interval to {}ms", new_interval_ms).into());
-    }
+    console::log_1(&format!("Changed animation interval to {}ms", new_interval_ms).into());
 
     Ok(())
 }
