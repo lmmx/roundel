@@ -10,6 +10,8 @@ pub struct Camera {
     pub pan_x: f32,
     pub pan_y: f32,
     pub scale: f32,
+    pub selected_vehicle_index: Option<usize>,
+    pub follow_mode: bool,
 }
 
 /// Whether user is dragging, plus last mouse coords
@@ -26,6 +28,8 @@ thread_local! {
         pan_x: 0.0,
         pan_y: 0.0,
         scale: 1.0
+        selected_vehicle_index: None,
+        follow_mode: false
     }) };
 
     pub static DRAG: RefCell<DragState> = RefCell::new(DragState::default());

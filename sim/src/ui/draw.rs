@@ -93,28 +93,58 @@ pub fn draw_routes(ctx: &CanvasRenderingContext2d) {
 
 /// Draw vehicles, offset by camera pan and scale
 pub fn draw_vehicles(ctx: &CanvasRenderingContext2d) {
-    let (pan_x, pan_y, scale) = CAMERA.with(|c| {
+    let (pan_x, pan_y, scale, selected_index) = CAMERA.with(|c| {
         let cam = c.borrow();
-        (cam.pan_x, cam.pan_y, cam.scale)
+        (cam.pan_x, cam.pan_y, cam.scale, cam.selected_vehicle_index)
     });
 
     GLOBAL_STATE.with(|cell| {
         let state = cell.borrow();
-        for v in &state.vehicles {
+        for (i, v) in state.vehicles.iter().enumerate() {
             ctx.begin_path();
 
             let draw_x = (v.x - pan_x) * scale;
             let draw_y = (v.y - pan_y) * scale;
 
-            // vehicles are small, so also multiply the circle radius by scale
-            ctx.arc(draw_x as f64, draw_y as f64, 2.0 * scale as f64, 0.0, 6.28)
-                .unwrap();
+            // Is this the selected vehicle?
+            let is_selected = selected_index == Some(i);
+            
+            // Draw the vehicle with appropriate styling
+            let radius = if is_selected {
+                3.0 * scale as f64  // Bigger for selected vehicle
+            } else {
+                2.0 * scale as f64
+            };
+            
+            ctx.arc(draw_x as f64, draw_y as f64, radius, 0.0, 6.28).unwrap();
 
+            // Color based on vehicle type and selection
             match v.vehicle_type {
-                VehicleType::Bus => ctx.set_fill_style_str("blue"),
-                VehicleType::Train => ctx.set_fill_style_str("red"),
+                VehicleType::Bus => {
+                    if is_selected {
+                        ctx.set_fill_style_str("lime")  // Highlight selected bus
+                    } else {
+                        ctx.set_fill_style_str("blue")
+                    }
+                },
+                VehicleType::Train => {
+                    if is_selected {
+                        ctx.set_fill_style_str("orange")  // Highlight selected train
+                    } else {
+                        ctx.set_fill_style_str("red")
+                    }
+                },
             }
             ctx.fill();
+            
+            // Draw a highlight ring around selected vehicle
+            if is_selected {
+                ctx.begin_path();
+                ctx.arc(draw_x as f64, draw_y as f64, 6.0 * scale as f64, 0.0, 6.28).unwrap();
+                ctx.set_stroke_style_str("yellow");
+                ctx.set_line_width(2.0);
+                ctx.stroke();
+            }
         }
     });
 }
