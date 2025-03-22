@@ -4,11 +4,14 @@ use super::control::SIMULATION_CONTROL;
 use super::draw::{draw_routes, draw_stats, draw_vehicles};
 use super::input::{attach_control_listeners, attach_mouse_listeners, attach_wheel_listener};
 use crate::model::GLOBAL_STATE;
+use crate::ui::camera::CAMERA;
+use crate::ui::input::attach_vehicle_selection_listener;
 use js_sys::Date;
 use once_cell::sync::OnceCell;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::{JsCast, closure::Closure};
 use wasm_bindgen_futures::spawn_local;
+use web_sys::window;
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, console};
 
 // Use OnceCell to store our interval ID so we can clear and reset it
@@ -74,12 +77,15 @@ pub fn main_js() -> Result<(), JsValue> {
     // 4) Attach simulation control listeners
     attach_control_listeners()?;
 
-    // 5) Load real TSV data and update routes (only if not using random routes)
+    // 5) Attach vehicle following listeners
+    attach_vehicle_selection_listener()?;
+
+    // 6) Load real TSV data and update routes (only if not using random routes)
     if !use_random_routes {
         load_real_route_data();
     }
 
-    // 6) Tie the data source checkbox to set_debug_mode
+    // 7) Tie the data source checkbox to set_debug_mode
     attach_data_source_listener()?;
 
     Ok(())
@@ -189,6 +195,40 @@ fn start_animation_loop() -> Result<(), JsValue> {
             // Update vehicle counts
             SIMULATION_CONTROL.with(|cell| {
                 cell.borrow_mut().update_vehicle_counts();
+            });
+
+            // Check if we need to update camera for follow mode
+            CAMERA.with(|c| {
+                let mut cam = c.borrow_mut();
+                if cam.follow_mode && cam.selected_vehicle_index.is_some() {
+                    let index = cam.selected_vehicle_index.unwrap();
+                    GLOBAL_STATE.with(|cell| {
+                        let state = cell.borrow();
+                        if index < state.vehicles.len() {
+                            let vehicle = &state.vehicles[index];
+                            // Get canvas dimensions
+                            if let Some(win) = window() {
+                                if let Some(document) = win.document() {
+                                    if let Some(canvas_el) = document.get_element_by_id("myCanvas")
+                                    {
+                                        if let Ok(canvas) =
+                                            canvas_el.dyn_into::<HtmlCanvasElement>()
+                                        {
+                                            let canvas_width = canvas.width() as f32;
+                                            let canvas_height = canvas.height() as f32;
+
+                                            // Center camera on selected vehicle
+                                            cam.pan_x =
+                                                vehicle.x - (canvas_width / cam.scale / 2.0);
+                                            cam.pan_y =
+                                                vehicle.y - (canvas_height / cam.scale / 2.0);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
             });
         }
 
