@@ -3,69 +3,7 @@
 <head>
   <meta charset="utf-8">
   <title>WASM Transport Simulation</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-    }
-
-    .controls {
-      margin-bottom: 20px;
-      padding: 15px;
-      background-color: #f5f5f5;
-      border-radius: 5px;
-    }
-
-    .control-group {
-      margin-bottom: 10px;
-    }
-
-    button {
-      padding: 8px 16px;
-      cursor: pointer;
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 4px;
-    }
-
-    button:hover {
-      background-color: #45a049;
-    }
-
-    label {
-      margin-right: 10px;
-    }
-
-    #myCanvas {
-      border: 1px solid #ccc;
-      display: block;
-    }
-
-    .slider-container {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .slider-container input {
-      flex-grow: 1;
-    }
-
-    .switch-control {
-      display: flex;
-      align-items: center;
-    }
-
-    .switch-control label {
-      margin-left: 8px;
-      font-weight: bold;
-    }
-
-    .hidden-state {
-      display: none;
-    }
-  </style>
+  <link data-trunk rel="css" href="./static/stylesheets/styles.css"></link>
 </head>
 <body>
   <h1>WASM Transport Simulation</h1>
@@ -112,6 +50,6 @@
   </div>
 
   <!-- Trunk will compile `src/ui/core.rs` into Wasm & JS and inject them here. -->
-  <script data-trunk src="src/ui/core.rs"></script>
+  <link data-trunk rel="rust" href="Cargo.toml"></link>
 </body>
 </html>
