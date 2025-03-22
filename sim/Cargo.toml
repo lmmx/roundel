@@ -4,7 +4,7 @@ js-sys = "0.3.77"
 once_cell = "1.21.1"
 wasm-bindgen = "0.2.100"
 wasm-bindgen-futures = "0.4.50"
-web-sys = { version = "0.3.77", features = ["Window", "HtmlInputElement", "Text", "Event", "console", "HtmlCanvasElement", "CanvasRenderingContext2d", "Document", "MouseEvent", "WheelEvent", "Request", "RequestInit", "Response", "DomRect"] }
+web-sys = {version = "0.3.77", features = ["Window", "HtmlInputElement", "Text", "Event", "console", "HtmlCanvasElement", "CanvasRenderingContext2d", "Document", "MouseEvent", "WheelEvent", "Request", "RequestInit", "Response", "DomRect"]}
 
 [lib]
 crate-type = ["cdylib"]
