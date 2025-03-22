@@ -24,9 +24,17 @@ static ANIMATION_INTERVAL_ID: OnceCell<i32> = OnceCell::new();
 pub fn main_js() -> Result<(), JsValue> {
     console_error_panic_hook::set_once();
 
-    // 1) Create routes & vehicles (random or real)
+    // Decide whether or not to allow random fallback
+    // (true means random fallback is allowed if no real data is loaded)
+    let debug_mode = false;
+
     GLOBAL_STATE.with(|cell| {
         let mut state = cell.borrow_mut();
+
+        // Set our global debug mode
+        state.set_debug_mode(debug_mode);
+
+        // Now attempt to initialize routes & vehicles
         state.init_vehicles();
     });
 
@@ -74,7 +82,10 @@ fn load_real_route_data() {
             }
             Err(e) => {
                 console::log_1(&format!("Error loading TSV files: {:?}", e).into());
-                console::log_1(&"Continuing with random routes".into());
+
+                // If debug_mode == false, no fallback will happen,
+                // so user just sees an empty simulation.
+                console::log_1(&"Continuing without real data.".into());
             }
         }
     });

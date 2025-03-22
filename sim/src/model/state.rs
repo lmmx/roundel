@@ -1,12 +1,19 @@
 // src/model/state.rs
 
-use crate::model::route_builder::{build_random_bus_routes, build_random_train_routes, build_real_bus_routes, build_real_train_routes};
+use crate::model::route_builder::{
+    build_random_bus_routes, build_random_train_routes,
+    build_real_bus_routes, build_real_train_routes
+};
 use crate::model::{Route, Vehicle, VehicleType};
 use std::cell::RefCell;
 
+/// Holds all simulation data, including a global "debug_mode" toggle
 pub struct SharedState {
     pub routes: Vec<Route>,
     pub vehicles: Vec<Vehicle>,
+
+    /// Toggle whether to generate random fallback routes when none are loaded
+    pub debug_mode: bool,
 }
 
 impl Default for SharedState {
@@ -20,10 +27,16 @@ impl SharedState {
         Self {
             routes: Vec::new(),
             vehicles: Vec::new(),
+            debug_mode: false, // default off
         }
     }
 
-    /// Called by init_vehicles(); sets up random routes initially.
+    /// Enable or disable debug mode at runtime
+    pub fn set_debug_mode(&mut self, debug: bool) {
+        self.debug_mode = debug;
+    }
+
+    /// Called by init_vehicles(); sets up random routes if we're in debug mode
     fn build_random_routes(&mut self) {
         // fetch random train routes
         let mut trains = build_random_train_routes();
@@ -33,7 +46,7 @@ impl SharedState {
         // combine them
         self.routes.clear();
         self.routes.append(&mut trains); // first 10 => trains
-        self.routes.append(&mut buses); // next 100 => buses
+        self.routes.append(&mut buses);  // next 100 => buses
     }
 
     /// Updates routes with real data from TSV files
@@ -47,21 +60,30 @@ impl SharedState {
         // combine them
         self.routes.clear();
         self.routes.append(&mut trains); // first ~11 => trains
-        self.routes.append(&mut buses); // next ~125 => buses
+        self.routes.append(&mut buses);  // next ~125 => buses
 
         // Recreate vehicles with the new routes
         self.vehicles.clear();
         self.init_vehicles();
 
-        web_sys::console::log_1(&format!("Routes updated: {} train routes, {} bus routes",
-                                         trains.len(), buses.len()).into());
+        web_sys::console::log_1(&format!(
+            "Routes updated: {} train routes, {} bus routes",
+            trains.len(),
+            buses.len()
+        ).into());
     }
 
     /// Create the vehicles: 1,000 buses + 1,000 trains
     pub fn init_vehicles(&mut self) {
-        // If no routes yet, create random routes
+        // If we have no routes, only build random ones if debug_mode is true.
         if self.routes.is_empty() {
-            self.build_random_routes();
+            if self.debug_mode {
+                web_sys::console::log_1(&"Debug mode on: building random routes...".into());
+                self.build_random_routes();
+            } else {
+                web_sys::console::log_1(&"No routes loaded (and debug mode is off). Doing nothing.".into());
+                return;
+            }
         }
 
         let rng = || js_sys::Math::random() as f32;
@@ -74,8 +96,11 @@ impl SharedState {
         let num_bus_routes = self.routes.len() - train_routes;
         let vehicles_per_bus_route = if num_bus_routes > 0 { 1000 / num_bus_routes } else { 10 };
 
-        web_sys::console::log_1(&format!("Creating {} buses across {} routes",
-                                        vehicles_per_bus_route * num_bus_routes, num_bus_routes).into());
+        web_sys::console::log_1(&format!(
+            "Creating {} buses across {} routes",
+            vehicles_per_bus_route * num_bus_routes,
+            num_bus_routes
+        ).into());
 
         // Create buses
         for r_i in 0..num_bus_routes {
@@ -144,8 +169,11 @@ impl SharedState {
         // Trains => route indices 0..train_routes
         let vehicles_per_train_route = if train_routes > 0 { 1000 / train_routes } else { 100 };
 
-        web_sys::console::log_1(&format!("Creating {} trains across {} routes",
-                                        vehicles_per_train_route * train_routes, train_routes).into());
+        web_sys::console::log_1(&format!(
+            "Creating {} trains across {} routes",
+            vehicles_per_train_route * train_routes,
+            train_routes
+        ).into());
 
         for r_i in 0..train_routes {
             let route_index = r_i;
@@ -211,10 +239,12 @@ impl SharedState {
             }
         }
 
-        web_sys::console::log_1(&format!("Created {} vehicles ({} buses, {} trains)",
-                              self.vehicles.len(),
-                              self.vehicles.iter().filter(|v| v.vehicle_type == VehicleType::Bus).count(),
-                              self.vehicles.iter().filter(|v| v.vehicle_type == VehicleType::Train).count()).into());
+        web_sys::console::log_1(&format!(
+            "Created {} vehicles ({} buses, {} trains)",
+            self.vehicles.len(),
+            self.vehicles.iter().filter(|v| v.vehicle_type == VehicleType::Bus).count(),
+            self.vehicles.iter().filter(|v| v.vehicle_type == VehicleType::Train).count()
+        ).into());
     }
 
     pub fn update_all(&mut self) {
