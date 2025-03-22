@@ -8,6 +8,7 @@ use js_sys::Date;
 use once_cell::sync::OnceCell;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::{JsCast, closure::Closure};
+use wasm_bindgen_futures::spawn_local;
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, console};
 
 // Use OnceCell to store our interval ID so we can clear and reset it
@@ -18,13 +19,22 @@ static ANIMATION_INTERVAL_ID: OnceCell<i32> = OnceCell::new();
 /// 2) Start the update loop (with adaptive interval)
 /// 3) Attach mouse events for panning and wheel event for zoom
 /// 4) Attach control listeners for simulation controls
+/// 5) Load real data from TSV files
+/// 6) Attach a debug-mode checkbox listener
 #[wasm_bindgen(start)]
 pub fn main_js() -> Result<(), JsValue> {
     console_error_panic_hook::set_once();
 
-    // 1) Create routes & vehicles (random or real)
+    // Decide whether or not to allow random fallback initially
+    let debug_mode = false;
+
     GLOBAL_STATE.with(|cell| {
         let mut state = cell.borrow_mut();
+
+        // Set our global debug mode
+        state.set_debug_mode(debug_mode);
+
+        // Now attempt to initialize routes & vehicles
         state.init_vehicles();
     });
 
@@ -43,7 +53,57 @@ pub fn main_js() -> Result<(), JsValue> {
     // 4) Attach simulation control listeners
     attach_control_listeners()?;
 
+    // 5) Load real TSV data and update routes
+    load_real_route_data();
+
+    // 6) Tie the debug checkbox to set_debug_mode
+    attach_debug_checkbox_listener()?;
+
     Ok(())
+}
+
+/// Asynchronously load TSV files and update routes with real data
+fn load_real_route_data() {
+    console::log_1(&"Starting to load real route data...".into());
+
+    // Use wasm_bindgen_futures to spawn an async task
+    spawn_local(async {
+        match load_tsv_files().await {
+            Ok((bus_data, tube_data)) => {
+                console::log_1(&"Successfully loaded TSV files, updating routes".into());
+
+                // Update routes with real data
+                GLOBAL_STATE.with(|cell| {
+                    let mut state = cell.borrow_mut();
+                    state.update_with_real_routes(&bus_data, &tube_data);
+                });
+
+                // Update vehicle counts after the change
+                SIMULATION_CONTROL.with(|cell| {
+                    cell.borrow_mut().update_vehicle_counts();
+                });
+            }
+            Err(e) => {
+                console::log_1(&format!("Error loading TSV files: {:?}", e).into());
+                console::log_1(&"Continuing without real data.".into());
+            }
+        }
+    });
+}
+
+/// Fetch both TSV files
+async fn load_tsv_files() -> Result<(String, String), JsValue> {
+    use crate::model::route_builder::fetch_tsv_file;
+
+    // Fetch both files in parallel
+    let bus_data_future = fetch_tsv_file("bus_routes.tsv");
+    let tube_data_future = fetch_tsv_file("tube_routes.tsv");
+
+    // Await both futures
+    let bus_data = bus_data_future.await?;
+    let tube_data = tube_data_future.await?;
+
+    Ok((bus_data, tube_data))
 }
 
 /// Creates a closure that runs repeatedly and updates + draws.
@@ -156,4 +216,40 @@ pub fn toggle_pause() -> bool {
         console::log_1(&format!("Simulation paused: {}", control.paused).into());
         control.paused
     })
+}
+
+/// Listens for changes to the "debugModeCheckbox" in the top-right
+fn attach_debug_checkbox_listener() -> Result<(), JsValue> {
+    let window = web_sys::window().ok_or("No window object")?;
+    let document = window.document().ok_or("No document object")?;
+    let checkbox_el = document
+        .get_element_by_id("debugModeCheckbox")
+        .ok_or("Could not find element #debugModeCheckbox")?;
+
+    // Cast it to HtmlInputElement so we can read `.checked`
+    let checkbox: web_sys::HtmlInputElement = checkbox_el
+        .dyn_into()
+        .map_err(|_| "Element is not an HtmlInputElement")?;
+
+    // Create a closure that fires on "change"
+    let cb_clone = checkbox.clone();
+    let closure = Closure::wrap(Box::new(move || {
+        let is_checked = cb_clone.checked();
+        set_debug_mode(is_checked);
+    }) as Box<dyn FnMut()>);
+
+    checkbox.add_event_listener_with_callback("change", closure.as_ref().unchecked_ref())?;
+    closure.forget(); // keep closure alive
+
+    Ok(())
+}
+
+/// Exported function to set debug mode at runtime (also called by the checkbox)
+#[wasm_bindgen]
+pub fn set_debug_mode(enable: bool) {
+    GLOBAL_STATE.with(|cell| {
+        let mut state = cell.borrow_mut();
+        state.set_debug_mode(enable);
+    });
+    console::log_1(&format!("debug_mode set to {}", enable).into());
 }
