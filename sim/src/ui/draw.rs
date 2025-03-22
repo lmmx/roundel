@@ -1,6 +1,7 @@
 // src/ui/draw.rs
 
 use super::camera::CAMERA;
+use super::control::get_vehicle_counts;
 use crate::model::{GLOBAL_STATE, VehicleType};
 use web_sys::CanvasRenderingContext2d;
 
@@ -62,4 +63,34 @@ pub fn draw_vehicles(ctx: &CanvasRenderingContext2d) {
             ctx.fill();
         }
     });
+}
+
+/// Draw statistics about the simulation (vehicle counts, etc.)
+pub fn draw_stats(ctx: &CanvasRenderingContext2d) {
+    // Get vehicle counts
+    let counts = get_vehicle_counts();
+
+    // Save context state
+    ctx.save();
+
+    // Set text properties
+    ctx.set_font("16px Arial");
+    ctx.set_fill_style_str("black");
+
+    // Draw background for stats area
+    ctx.set_fill_style_str("rgba(255, 255, 255, 0.7)");
+    ctx.fill_rect(10.0, 10.0, 200.0, 80.0);
+
+    // Draw text
+    ctx.set_fill_style_str("black");
+    ctx.fill_text("Vehicles in transit:", 20.0, 30.0).unwrap();
+    ctx.fill_text(&format!("Buses: {}", counts.buses), 30.0, 50.0)
+        .unwrap();
+    ctx.fill_text(&format!("Trains: {}", counts.trains), 30.0, 70.0)
+        .unwrap();
+    ctx.fill_text(&format!("Total: {}", counts.total), 130.0, 70.0)
+        .unwrap();
+
+    // Restore context state
+    ctx.restore();
 }
