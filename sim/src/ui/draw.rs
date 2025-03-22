@@ -1,8 +1,8 @@
 // src/ui/draw.rs
 
-use web_sys::CanvasRenderingContext2d;
-use crate::model::{GLOBAL_STATE, VehicleType};
 use super::camera::CAMERA;
+use crate::model::{GLOBAL_STATE, VehicleType};
+use web_sys::CanvasRenderingContext2d;
 
 /// Draw routes, offsetting by the camera's pan_x/pan_y and scaling by camera.scale
 pub fn draw_routes(ctx: &CanvasRenderingContext2d) {

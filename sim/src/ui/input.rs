@@ -1,8 +1,8 @@
 // src/ui/input.rs
 
+use super::camera::{CAMERA, DRAG};
 use wasm_bindgen::{JsCast, JsValue, closure::Closure};
 use web_sys::{Document, MouseEvent, WheelEvent};
-use super::camera::{CAMERA, DRAG};
 
 /// Attach mouse events so user can pan the canvas.
 pub fn attach_mouse_listeners() -> Result<(), JsValue> {

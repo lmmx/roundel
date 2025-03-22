@@ -1,12 +1,12 @@
 // src/ui/main_ui.rs
 
-use wasm_bindgen::prelude::*;
-use wasm_bindgen::{JsCast, closure::Closure};
-use js_sys::Date;
-use web_sys::{HtmlCanvasElement, CanvasRenderingContext2d, console};
-use crate::model::GLOBAL_STATE;
 use super::draw::{draw_routes, draw_vehicles};
 use super::input::{attach_mouse_listeners, attach_wheel_listener};
+use crate::model::GLOBAL_STATE;
+use js_sys::Date;
+use wasm_bindgen::prelude::*;
+use wasm_bindgen::{JsCast, closure::Closure};
+use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, console};
 
 /// Called once when the Wasm module loads:
 /// 1) Initialize routes/vehicles
