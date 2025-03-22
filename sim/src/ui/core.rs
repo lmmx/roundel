@@ -16,12 +16,13 @@ static ANIMATION_INTERVAL_ID: OnceCell<i32> = OnceCell::new();
 
 /// Called once when the Wasm module loads:
 /// 1) Read the checkbox state to determine initial mode
-/// 2) Initialize routes/vehicles based on the initial mode
-/// 3) Start the update loop (with adaptive interval)
-/// 4) Attach mouse events for panning and wheel event for zoom
-/// 5) Attach control listeners for simulation controls
-/// 6) Load real data from TSV files if needed
-/// 7) Attach a data source switch listener
+/// 2) Initialize camera from DOM values
+/// 3) Initialize routes/vehicles based on the initial mode
+/// 4) Start the update loop (with adaptive interval)
+/// 5) Attach mouse events for panning and wheel event for zoom
+/// 6) Attach control listeners for simulation controls
+/// 7) Load real data from TSV files if needed
+/// 8) Attach a data source switch listener
 #[wasm_bindgen(start)]
 pub fn main_js() -> Result<(), JsValue> {
     console_error_panic_hook::set_once();
@@ -39,6 +40,9 @@ pub fn main_js() -> Result<(), JsValue> {
         )
         .into(),
     );
+
+    // Initialize camera from DOM values
+    super::camera::initialize_camera_from_dom();
 
     GLOBAL_STATE.with(|cell| {
         let mut state = cell.borrow_mut();

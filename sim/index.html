@@ -61,6 +61,10 @@
       margin-left: 8px;
       font-weight: bold;
     }
+
+    .hidden-state {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -94,6 +98,13 @@
   <canvas id="myCanvas" width="1000" height="1000">
     Your browser doesn't support HTML canvas.
   </canvas>
+
+  <!-- Hidden inputs to store camera state across refreshes -->
+  <div class="hidden-state">
+    <input type="hidden" id="cameraPanX" value="0">
+    <input type="hidden" id="cameraPanY" value="0">
+    <input type="hidden" id="cameraScale" value="1">
+  </div>
 
   <!-- Trunk will compile `src/ui/core.rs` into Wasm & JS and inject them here. -->
   <script data-trunk src="src/ui/core.rs"></script>

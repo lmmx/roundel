@@ -1,6 +1,6 @@
 // src/ui/input.rs
 
-use super::camera::{CAMERA, DRAG};
+use super::camera::{CAMERA, DRAG, update_camera_dom_state};
 use super::control::SIMULATION_CONTROL;
 use super::core::{change_animation_interval, toggle_pause};
 use wasm_bindgen::{JsCast, JsValue, closure::Closure};
@@ -38,6 +38,9 @@ pub fn attach_mouse_listeners() -> Result<(), JsValue> {
             DRAG.with(|ds| {
                 ds.borrow_mut().is_dragging = false;
             });
+
+            // When mouse up happens, update the DOM state
+            update_camera_dom_state();
         }) as Box<dyn FnMut(_)>);
 
         // We can add mouseup to the canvas or the entire document
@@ -116,6 +119,9 @@ pub fn attach_wheel_listener() -> Result<(), JsValue> {
                 cam.scale = 50.0;
             }
         });
+
+        // Update DOM state after zoom
+        update_camera_dom_state();
     }) as Box<dyn FnMut(_)>);
 
     canvas_el.add_event_listener_with_callback("wheel", closure_wheel.as_ref().unchecked_ref())?;
