@@ -15,22 +15,76 @@ pub fn draw_routes(ctx: &CanvasRenderingContext2d) {
     GLOBAL_STATE.with(|cell| {
         let state = cell.borrow();
         for (i, route) in state.routes.iter().enumerate() {
-            // color routes differently for trains vs buses
-            if i < 10 {
-                ctx.set_fill_style_str("rgba(255, 150, 150, 0.6)");
-            } else {
-                ctx.set_fill_style_str("rgba(150, 150, 255, 0.6)");
+            // Skip routes with fewer than 2 stations
+            if route.stations.len() < 2 {
+                continue;
             }
 
-            for &(sx, sy) in &route.stations {
+            // Draw the line connecting all stations
+            ctx.begin_path();
+
+            // Get the first point
+            let (first_x, first_y) = route.stations[0];
+            let draw_first_x = (first_x - pan_x) * scale;
+            let draw_first_y = (first_y - pan_y) * scale;
+
+            ctx.move_to(draw_first_x as f64, draw_first_y as f64);
+
+            // Connect all stations with lines
+            for &(sx, sy) in route.stations.iter().skip(1) {
+                let draw_x = (sx - pan_x) * scale;
+                let draw_y = (sy - pan_y) * scale;
+                ctx.line_to(draw_x as f64, draw_y as f64);
+            }
+
+            // Set stroke style based on route type
+            if i < 10 {
+                // Train routes
+                ctx.set_stroke_style_str("rgba(255, 0, 0, 0.4)");
+            } else {
+                // Bus routes
+                ctx.set_stroke_style_str("rgba(0, 0, 255, 0.4)");
+            }
+
+            ctx.set_line_width(2.0 * scale as f64);
+            ctx.stroke();
+
+            // Now draw stations as circles
+            for (idx, &(sx, sy)) in route.stations.iter().enumerate() {
                 ctx.begin_path();
 
-                // shift by pan_x / pan_y, then apply scale
+                // Shift by pan_x / pan_y, then apply scale
                 let draw_x = (sx - pan_x) * scale;
                 let draw_y = (sy - pan_y) * scale;
 
-                ctx.arc(draw_x as f64, draw_y as f64, 5.0 * scale as f64, 0.0, 6.28)
-                    .unwrap();
+                // Determine circle size:
+                // - For train routes (i < 10): All stations are the same size (5.0)
+                // - For bus routes (i >= 10): Terminals are larger (5.0), intermediate stops are smaller (3.0)
+                let is_terminal = i >= 10 && (idx == 0 || idx == route.stations.len() - 1);
+                let circle_size = if is_terminal || i < 10 { 5.0 } else { 2.0 };
+
+                ctx.arc(
+                    draw_x as f64,
+                    draw_y as f64,
+                    circle_size * scale as f64,
+                    0.0,
+                    2.0 * std::f64::consts::PI,
+                )
+                .unwrap();
+
+                // Set fill color based on route type
+                if i < 10 {
+                    // Train stations
+                    ctx.set_fill_style_str("rgba(255, 100, 100, 0.7)");
+                } else {
+                    // Bus stops - terminals are darker
+                    if is_terminal {
+                        ctx.set_fill_style_str("rgba(50, 50, 255, 0.9)");
+                    } else {
+                        ctx.set_fill_style_str("rgba(100, 100, 255, 0.6)");
+                    }
+                }
+
                 ctx.fill();
             }
         }
