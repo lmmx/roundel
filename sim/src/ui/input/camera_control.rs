@@ -139,7 +139,7 @@ pub fn attach_touch_listeners() -> Result<(), JsValue> {
 
     // Use thread_local for previous touch distance
     thread_local! {
-        static PREV_TOUCH_DISTANCE: RefCell<f64> = RefCell::new(0.0);
+        static PREV_TOUCH_DISTANCE: RefCell<f64> = const { RefCell::new(0.0) };
     }
 
     // TOUCH START

@@ -18,7 +18,7 @@ use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, console};
 
 // Use OnceCell to store our interval ID so we can clear and reset it
 thread_local! {
-    static ANIMATION_INTERVAL_ID: RefCell<Option<i32>> = RefCell::new(None);
+    static ANIMATION_INTERVAL_ID: RefCell<Option<i32>> = const { RefCell::new(None) };
 }
 
 /// Called once when the Wasm module loads:
