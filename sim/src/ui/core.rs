@@ -74,11 +74,11 @@ pub fn main_js() -> Result<(), JsValue> {
     attach_mouse_listeners()?;
     attach_wheel_listener()?;
 
-    // 4) Attach vehicle following listeners
-    attach_vehicle_selection_listener()?;
-
-    // 5) Attach simulation control listeners
+    // 4) Attach simulation control listeners
     attach_control_listeners()?;
+
+    // 5) Attach vehicle following listeners
+    attach_vehicle_selection_listener()?;
 
     // 6) Load real TSV data and update routes (only if not using random routes)
     if !use_random_routes {

@@ -316,11 +316,23 @@ pub fn attach_vehicle_selection_listener() -> Result<(), JsValue> {
                             let mut cam = c.borrow_mut();
                             cam.selected_vehicle_index = closest_index;
 
-                            // Enable the follow button if a vehicle is selected
-                            if closest_index.is_some() {
-                                if let Some(follow_btn) = document.get_element_by_id("followButton")
-                                {
-                                    follow_btn.set_attribute("disabled", "false").ok();
+                            // Enable or disable the follow button based on selection
+                            if let Some(window) = web_sys::window() {
+                                if let Some(document) = window.document() {
+                                    if let Some(follow_btn) =
+                                        document.get_element_by_id("followButton")
+                                    {
+                                        if closest_index.is_some() {
+                                            // Enable the button when vehicle is selected
+                                            follow_btn.remove_attribute("disabled").ok();
+                                        } else {
+                                            // Disable the button when no vehicle is selected
+                                            follow_btn.set_attribute("disabled", "true").ok();
+
+                                            // Also turn off follow mode if it was on
+                                            cam.follow_mode = false;
+                                        }
+                                    }
                                 }
                             }
                         });
