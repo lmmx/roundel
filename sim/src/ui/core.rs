@@ -2,7 +2,9 @@
 
 use super::control::SIMULATION_CONTROL;
 use super::draw::{draw_routes, draw_stats, draw_vehicles};
-use super::input::{attach_control_listeners, attach_mouse_listeners, attach_wheel_listener};
+use super::input::{
+    attach_control_listeners, attach_mouse_listeners, attach_touch_listeners, attach_wheel_listener,
+};
 use crate::model::GLOBAL_STATE;
 use crate::ui::camera::CAMERA;
 use crate::ui::input::attach_vehicle_selection_listener;
@@ -73,6 +75,7 @@ pub fn main_js() -> Result<(), JsValue> {
     // 3) Attach mouse & wheel listeners
     attach_mouse_listeners()?;
     attach_wheel_listener()?;
+    attach_touch_listeners()?;
 
     // 4) Attach simulation control listeners
     attach_control_listeners()?;
