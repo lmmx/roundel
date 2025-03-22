@@ -1,17 +1,23 @@
-// src/ui/main_ui.rs
+// src/ui/core.rs
 
-use super::draw::{draw_routes, draw_vehicles};
-use super::input::{attach_mouse_listeners, attach_wheel_listener};
+use super::control::SIMULATION_CONTROL;
+use super::draw::{draw_routes, draw_stats, draw_vehicles};
+use super::input::{attach_control_listeners, attach_mouse_listeners, attach_wheel_listener};
 use crate::model::GLOBAL_STATE;
 use js_sys::Date;
+use once_cell::sync::OnceCell;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::{JsCast, closure::Closure};
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, console};
 
+// Use OnceCell to store our interval ID so we can clear and reset it
+static ANIMATION_INTERVAL_ID: OnceCell<i32> = OnceCell::new();
+
 /// Called once when the Wasm module loads:
 /// 1) Initialize routes/vehicles
-/// 2) Start the update loop (setInterval ~60 FPS)
+/// 2) Start the update loop (with adaptive interval)
 /// 3) Attach mouse events for panning and wheel event for zoom
+/// 4) Attach control listeners for simulation controls
 #[wasm_bindgen(start)]
 pub fn main_js() -> Result<(), JsValue> {
     console_error_panic_hook::set_once();
@@ -22,6 +28,11 @@ pub fn main_js() -> Result<(), JsValue> {
         state.init_vehicles();
     });
 
+    // Initialize vehicle counts
+    SIMULATION_CONTROL.with(|cell| {
+        cell.borrow_mut().update_vehicle_counts();
+    });
+
     // 2) Repeated update & draw
     start_animation_loop()?;
 
@@ -29,20 +40,34 @@ pub fn main_js() -> Result<(), JsValue> {
     attach_mouse_listeners()?;
     attach_wheel_listener()?;
 
+    // 4) Attach simulation control listeners
+    attach_control_listeners()?;
+
     Ok(())
 }
 
-/// Creates a closure that runs at ~60 FPS (setInterval) and updates + draws.
+/// Creates a closure that runs repeatedly and updates + draws.
+/// The interval will auto-adjust based on performance.
 fn start_animation_loop() -> Result<(), JsValue> {
     let closure = Closure::wrap(Box::new(move || {
         let t_start = Date::now();
 
-        // 1) Update vehicles
-        GLOBAL_STATE.with(|cell| {
-            cell.borrow_mut().update_all();
-        });
+        // Get pause state
+        let paused = SIMULATION_CONTROL.with(|cell| cell.borrow().paused);
 
-        // 2) Draw everything
+        // 1) Update vehicles (if not paused)
+        if !paused {
+            GLOBAL_STATE.with(|cell| {
+                cell.borrow_mut().update_all();
+            });
+
+            // Update vehicle counts
+            SIMULATION_CONTROL.with(|cell| {
+                cell.borrow_mut().update_vehicle_counts();
+            });
+        }
+
+        // 2) Draw everything (even if paused, to show current state)
         if let Some(window) = web_sys::window() {
             if let Some(document) = window.document() {
                 if let Some(canvas_el) = document.get_element_by_id("myCanvas") {
@@ -59,6 +84,7 @@ fn start_animation_loop() -> Result<(), JsValue> {
 
                             draw_routes(&ctx);
                             draw_vehicles(&ctx);
+                            draw_stats(&ctx);
                         }
                     }
                 }
@@ -66,19 +92,68 @@ fn start_animation_loop() -> Result<(), JsValue> {
         }
 
         let t_end = Date::now();
-        let ms = t_end - t_start;
-        console::log_1(&format!("Update & draw took {:.3} ms", ms).into());
+        let frame_time_ms = t_end - t_start;
+
+        // Log performance
+        console::log_1(&format!("Update & draw took {:.3} ms", frame_time_ms).into());
+
+        // Auto-adjust interval if enabled
+        SIMULATION_CONTROL.with(|cell| {
+            let mut control = cell.borrow_mut();
+            if control.auto_adjust {
+                control.auto_adjust_interval(frame_time_ms);
+            }
+        });
     }) as Box<dyn FnMut()>);
 
-    // setInterval(..., 16) => ~60 FPS
+    // Set the initial interval (will be adjusted later if auto_adjust is enabled)
+    let update_interval = SIMULATION_CONTROL.with(|cell| cell.borrow().update_interval_ms);
+
     let window = web_sys::window().unwrap();
-    window.set_interval_with_callback_and_timeout_and_arguments_0(
+    let interval_id = window.set_interval_with_callback_and_timeout_and_arguments_0(
         closure.as_ref().unchecked_ref(),
-        16,
+        update_interval as i32,
     )?;
+
+    // Store the interval ID so we can update it later
+    let _ = ANIMATION_INTERVAL_ID.set(interval_id);
 
     // Keep the closure alive
     closure.forget();
 
     Ok(())
+}
+
+/// Change the animation interval to a new value
+#[wasm_bindgen]
+pub fn change_animation_interval(new_interval_ms: u32) -> Result<(), JsValue> {
+    // Update the stored interval value
+    SIMULATION_CONTROL.with(|cell| {
+        cell.borrow_mut().update_interval_ms = new_interval_ms;
+    });
+
+    // Get the old interval ID
+    if let Some(old_interval_id) = ANIMATION_INTERVAL_ID.get() {
+        // Clear the old interval
+        let window = web_sys::window().unwrap();
+        window.clear_interval_with_handle(*old_interval_id);
+
+        // Start a new animation loop
+        start_animation_loop()?;
+
+        console::log_1(&format!("Changed animation interval to {}ms", new_interval_ms).into());
+    }
+
+    Ok(())
+}
+
+/// Toggle the pause state of the simulation
+#[wasm_bindgen]
+pub fn toggle_pause() -> bool {
+    SIMULATION_CONTROL.with(|cell| {
+        let mut control = cell.borrow_mut();
+        control.paused = !control.paused;
+        console::log_1(&format!("Simulation paused: {}", control.paused).into());
+        control.paused
+    })
 }
