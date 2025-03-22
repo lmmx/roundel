@@ -52,15 +52,14 @@
       flex-grow: 1;
     }
 
-    /* This positions the debug checkbox in the top-right corner */
-    #debugContainer {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      background-color: #fff;
-      padding: 5px 10px;
-      border-radius: 4px;
-      box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+    .switch-control {
+      display: flex;
+      align-items: center;
+    }
+
+    .switch-control label {
+      margin-left: 8px;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -81,20 +80,20 @@
         <span id="fpsValue"></span>
       </div>
     </div>
+
+    <!-- Data source control (moved from debug container) -->
+    <div class="control-group">
+      <div class="switch-control">
+        <input type="checkbox" id="debugModeCheckbox">
+        <label for="debugModeCheckbox">Use Random Routes</label>
+      </div>
+    </div>
   </div>
 
   <!-- Canvas where we draw our vehicles -->
   <canvas id="myCanvas" width="1000" height="1000">
     Your browser doesn't support HTML canvas.
   </canvas>
-
-  <!-- Debug checkbox in the top-right corner -->
-  <div id="debugContainer">
-    <label>
-      <input type="checkbox" id="debugModeCheckbox">
-      Debug Mode
-    </label>
-  </div>
 
   <!-- Trunk will compile `src/ui/core.rs` into Wasm & JS and inject them here. -->
   <script data-trunk src="src/ui/core.rs"></script>

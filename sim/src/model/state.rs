@@ -36,8 +36,8 @@ impl SharedState {
         self.debug_mode = debug;
     }
 
-    /// Called by init_vehicles(); sets up random routes if we're in debug mode
-    fn build_random_routes(&mut self) {
+    /// Builds random routes for both trains and buses
+    pub fn build_random_routes(&mut self) {
         // fetch random train routes
         let mut trains = build_random_train_routes();
         // fetch random bus routes

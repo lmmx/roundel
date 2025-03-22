@@ -19,20 +19,20 @@ static ANIMATION_INTERVAL_ID: OnceCell<i32> = OnceCell::new();
 /// 2) Start the update loop (with adaptive interval)
 /// 3) Attach mouse events for panning and wheel event for zoom
 /// 4) Attach control listeners for simulation controls
-/// 5) Load real data from TSV files
-/// 6) Attach a debug-mode checkbox listener
+/// 5) Load real data from TSV files 
+/// 6) Attach a data source switch listener
 #[wasm_bindgen(start)]
 pub fn main_js() -> Result<(), JsValue> {
     console_error_panic_hook::set_once();
 
-    // Decide whether or not to allow random fallback initially
-    let debug_mode = false;
+    // Default to using real data (not random data)
+    let use_random_routes = false;
 
     GLOBAL_STATE.with(|cell| {
         let mut state = cell.borrow_mut();
 
-        // Set our global debug mode
-        state.set_debug_mode(debug_mode);
+        // Set our global data source mode
+        state.set_debug_mode(use_random_routes);
 
         // Now attempt to initialize routes & vehicles
         state.init_vehicles();
@@ -53,11 +53,16 @@ pub fn main_js() -> Result<(), JsValue> {
     // 4) Attach simulation control listeners
     attach_control_listeners()?;
 
-    // 5) Load real TSV data and update routes
-    load_real_route_data();
+    // 5) Load real TSV data and update routes (only if not using random routes)
+    GLOBAL_STATE.with(|cell| {
+        let state = cell.borrow();
+        if !state.debug_mode {
+            load_real_route_data();
+        }
+    });
 
-    // 6) Tie the debug checkbox to set_debug_mode
-    attach_debug_checkbox_listener()?;
+    // 6) Tie the data source checkbox to set_debug_mode
+    attach_data_source_listener()?;
 
     Ok(())
 }
@@ -72,20 +77,42 @@ fn load_real_route_data() {
             Ok((bus_data, tube_data)) => {
                 console::log_1(&"Successfully loaded TSV files, updating routes".into());
 
-                // Update routes with real data
+                // Only update routes if we're still in real data mode
                 GLOBAL_STATE.with(|cell| {
                     let mut state = cell.borrow_mut();
-                    state.update_with_real_routes(&bus_data, &tube_data);
+                    if !state.debug_mode {
+                        state.update_with_real_routes(&bus_data, &tube_data);
+                        console::log_1(&"Routes updated with real data".into());
+                    } else {
+                        console::log_1(&"Random routes mode active, ignoring loaded data".into());
+                    }
                 });
 
                 // Update vehicle counts after the change
                 SIMULATION_CONTROL.with(|cell| {
-                    cell.borrow_mut().update_vehicle_counts();
+                    let mut control = cell.borrow_mut();
+                    control.update_vehicle_counts();
+                    
+                    // Resume simulation now that data is loaded (if we're in real data mode)
+                    GLOBAL_STATE.with(|cell| {
+                        let state = cell.borrow();
+                        if !state.debug_mode {
+                            control.paused = false;
+                            console::log_1(&"Resuming simulation with real data".into());
+                        }
+                    });
                 });
             }
             Err(e) => {
                 console::log_1(&format!("Error loading TSV files: {:?}", e).into());
                 console::log_1(&"Continuing without real data.".into());
+                
+                // If we failed to load data but are in real data mode, 
+                // resume the simulation anyway to prevent it staying frozen
+                SIMULATION_CONTROL.with(|cell| {
+                    let mut control = cell.borrow_mut();
+                    control.paused = false;
+                });
             }
         }
     });
@@ -209,8 +236,8 @@ pub fn toggle_pause() -> bool {
     })
 }
 
-/// Listens for changes to the "debugModeCheckbox" in the top-right
-fn attach_debug_checkbox_listener() -> Result<(), JsValue> {
+/// Listens for changes to the "debugModeCheckbox" for data source selection
+fn attach_data_source_listener() -> Result<(), JsValue> {
     let window = web_sys::window().ok_or("No window object")?;
     let document = window.document().ok_or("No document object")?;
     let checkbox_el = document
@@ -226,7 +253,7 @@ fn attach_debug_checkbox_listener() -> Result<(), JsValue> {
     let cb_clone = checkbox.clone();
     let closure = Closure::wrap(Box::new(move || {
         let is_checked = cb_clone.checked();
-        set_debug_mode(is_checked);
+        set_data_source_mode(is_checked);
     }) as Box<dyn FnMut()>);
 
     checkbox.add_event_listener_with_callback("change", closure.as_ref().unchecked_ref())?;
@@ -235,12 +262,57 @@ fn attach_debug_checkbox_listener() -> Result<(), JsValue> {
     Ok(())
 }
 
-/// Exported function to set debug mode at runtime (also called by the checkbox)
+/// Function to switch between random routes and real data routes
 #[wasm_bindgen]
-pub fn set_debug_mode(enable: bool) {
+pub fn set_data_source_mode(use_random: bool) {
+    // First, pause the simulation to prevent updates while we're changing data
+    let was_paused = SIMULATION_CONTROL.with(|cell| {
+        let mut control = cell.borrow_mut();
+        let was_paused = control.paused;
+        control.paused = true;
+        was_paused
+    });
+
     GLOBAL_STATE.with(|cell| {
         let mut state = cell.borrow_mut();
-        state.set_debug_mode(enable);
+        state.set_debug_mode(use_random);
+        
+        // Clear BOTH existing routes AND vehicles to prevent any stale references
+        state.routes.clear();
+        state.vehicles.clear();
+        
+        if use_random {
+            // If using random routes, build them immediately
+            console::log_1(&"Building random routes...".into());
+            state.build_random_routes();
+            // Now initialize vehicles for these new routes
+            state.init_vehicles();
+            console::log_1(&"Switched to random routes mode".into());
+        } else {
+            // If using real data, we'll start loading it
+            // Keep the simulation paused until data loads
+            console::log_1(&"Switched to real data mode, loading routes...".into());
+            drop(state); // Release the borrow before the async operation
+            load_real_route_data();
+        }
     });
+    
+    // Update vehicle counts
+    SIMULATION_CONTROL.with(|cell| {
+        let mut control = cell.borrow_mut();
+        control.update_vehicle_counts();
+        
+        // Only restore previous pause state if we were using random routes
+        // (for real data, we'll keep it paused until loaded)
+        if use_random && !was_paused {
+            control.paused = false;
+        }
+    });
+}
+
+/// Legacy function to maintain compatibility, delegates to set_data_source_mode
+#[wasm_bindgen]
+pub fn set_debug_mode(enable: bool) {
+    set_data_source_mode(enable);
     console::log_1(&format!("debug_mode set to {}", enable).into());
 }
