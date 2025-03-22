@@ -112,11 +112,7 @@ pub fn attach_wheel_listener() -> Result<(), JsValue> {
             }
 
             // clamp scale
-            if cam.scale < 0.1 {
-                cam.scale = 0.1;
-            } else if cam.scale > 50.0 {
-                cam.scale = 50.0;
-            }
+            cam.scale = cam.scale.clamp(0.1, 50.0);
         });
 
         // Update DOM state after zoom
@@ -213,11 +209,7 @@ pub fn attach_touch_listeners() -> Result<(), JsValue> {
                             }
 
                             // Clamp scale to reasonable bounds
-                            if cam.scale < 0.1 {
-                                cam.scale = 0.1;
-                            } else if cam.scale > 50.0 {
-                                cam.scale = 50.0;
-                            }
+                            cam.scale = cam.scale.clamp(0.1, 50.0);
                         });
                     }
 
