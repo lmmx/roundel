@@ -1,5 +1,7 @@
 # Transport Network Simulation (Rust + WebAssembly)
 
+> Note: this is the proof of concept wasm-bindgen sim, there is another using MapLibre GL JS
+
 This code simulates a **transport network** with **2,000 vehicles** (buses and trains) in the browser. It uses a **global, thread-local `RefCell`** in Rust to store and update the vehicles’ shared state. Every half-second, each vehicle moves along its route (horizontal lines for buses, vertical lines for trains), and a `<canvas>` is redrawn to reflect their updated positions. The simulation logs the update/draw performance to the browser console.
 
 This simple setup shows how to **store** & **update** thousands of moving vehicles in Rust, **draw** them in an HTML `<canvas>`, and log **performance** in the **browser console**—all while using a single global `RefCell` for shared state. Enjoy tinkering with it!
