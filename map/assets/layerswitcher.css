@@ -1,0 +1,89 @@
+/*
+ * Layer Switcher component styles
+ * Based on https://github.com/russss/maplibregl-layer-switcher
+ */
+.layer-switcher-list {
+  display: none;
+  position: absolute;
+  max-height: 85vh;
+  overflow-y: auto;
+  top: 145px;
+  right: 10px;
+  background-color: white;
+  border-radius: 4px;
+  padding: 10px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  z-index: 2;
+  min-width: 200px;
+}
+
+.layer-switcher-list.active {
+  display: block;
+}
+
+.layer-switcher-list h3 {
+  margin: 0 0 10px 0;
+  padding: 5px;
+  background-color: #f3f3f3;
+  border-radius: 4px;
+}
+
+.layer-switcher-list h4 {
+  margin: 10px 0 5px 0;
+  padding-bottom: 3px;
+  border-bottom: 1px solid #f3f3f3;
+}
+
+.layer-switcher-list ul {
+  padding-left: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.layer-group {
+  margin-bottom: 10px;
+}
+
+.layer-group ul {
+  padding-left: 15px;
+}
+
+.layer-item {
+  padding: 3px 0;
+}
+
+.layer-item label {
+  margin-left: 5px;
+  cursor: pointer;
+}
+
+.layer-item label:hover {
+  background-color: #f3f3f3;
+  border-radius: 3px;
+  padding: 1px 2px;
+}
+
+/* Layer Switcher Button */
+.layer-switcher-button {
+  min-height: 30px;
+  min-width: 30px;
+  background: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 31px;
+  font-weight: bold;
+  margin-top: -7px;
+  margin-bottom: 7px;
+}
+
+.layer-switcher-button::after {
+  content: '☰';
+}
+
+/* Make the button stand out a bit when hovered */
+.layer-switcher-button:hover {
+  background-color: #f3f3f3;
+}

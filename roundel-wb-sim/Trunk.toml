@@ -1,4 +1,0 @@
-[build]
-dist = "dist"
-public_url = "/roundel/"
-target = "index.html"

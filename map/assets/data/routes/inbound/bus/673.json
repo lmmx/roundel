@@ -1,0 +1,1 @@
+{"context":{"request_time":"2025-04-06T19:26:00.906087Z","response_time":"2025-04-06T19:26:01.219643Z","response_latency":0.313556,"query":"line=673,direction=inbound"},"success":true,"results":[{"LineId":"673","LineName":"673","Direction":"inbound","IsOutboundOnly":true,"Mode":"bus","LineStrings":[],"Stations":[],"StopPointSequences":[],"OrderedLineRoutes":[]}]}

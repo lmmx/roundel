@@ -1,0 +1,1 @@
+{"context":{"request_time":"2025-04-06T19:28:03.141981Z","response_time":"2025-04-06T19:28:03.466753Z","response_latency":0.324772,"query":"line=h2,direction=inbound"},"success":true,"results":[{"LineId":"h2","LineName":"H2","Direction":"inbound","IsOutboundOnly":true,"Mode":"bus","LineStrings":[],"Stations":[],"StopPointSequences":[],"OrderedLineRoutes":[]}]}
