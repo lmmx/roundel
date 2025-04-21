@@ -1,5 +1,5 @@
 [dependencies]
-chrono = { version = "0.4.40", features = ["serde"] }
+chrono = {version = "0.4.40", features = ["serde"]}
 console_error_panic_hook = "0.1"
 console_log = "1.0"
 dioxus = {version = "0.6.0", features = []}

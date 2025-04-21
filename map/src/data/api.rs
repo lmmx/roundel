@@ -48,7 +48,7 @@ pub async fn fetch_arrivals_for_line(line_id: &str) -> Result<Vec<Prediction>, S
     };
 
     // Parse the JSON using your existing Prediction model
-    let response: Tb8Response<Prediction> = 
+    let response: Tb8Response<Prediction> =
         match serde_json::from_str(&text) {
             Ok(resp) => resp,
             Err(e) => {
