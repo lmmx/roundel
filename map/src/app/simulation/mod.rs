@@ -213,14 +213,14 @@ pub fn expose_simulation_functions(tfl_data: Option<TflDataRepository>) -> Resul
 // pub fn initialize_simulation(tfl_data: Option<TflDataRepository>) {
 //     with_context("initialize_simulation", LogCategory::Simulation, |logger| {
 //         logger.info("Initializing vehicle simulation...");
-// 
+//
 //         // Set a global flag to track simulation visibility
 //         let js_code = r#"
 //         window.simulationVisible = true;
 //         console.log('Set window.simulationVisible = true');
 //         "#;
 //         let _ = js_sys::eval(js_code);
-// 
+//
 //         // Build routes from real TfL data if available, otherwise use sample routes
 //         let routes = match tfl_data {
 //             Some(repo) => build_routes_from_tfl_data(&repo),
@@ -229,17 +229,17 @@ pub fn expose_simulation_functions(tfl_data: Option<TflDataRepository>) -> Resul
 //                 build_sample_routes()
 //             }
 //         };
-// 
+//
 //         // Initialize vehicles on those routes
 //         let vehicles = initialize_vehicles(&routes);
-// 
+//
 //         // Store in global state
 //         initialize_state(routes, vehicles);
-// 
+//
 //         // Register with MapLibre and start animation
 //         register_vehicle_layers();
 //         start_animation_loop();
-// 
+//
 //         logger.info("Simulation initialized");
 //     });
 // }
